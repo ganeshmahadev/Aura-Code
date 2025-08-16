@@ -559,7 +559,7 @@ const Create = () => {
     <PageContainer>
       <Sidebar style={{ width: `${sidebarWidth}px` }}>
         <BeamHeader>
-          <div>Beam</div>
+          <div>AuraCode</div>
         </BeamHeader>
 
         <ChatHistory ref={chatHistoryRef}>
@@ -603,7 +603,7 @@ const Create = () => {
 
         <ChatInputContainer>
           <Input
-            placeholder="Ask Beam..."
+            placeholder="Ask Aura..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
