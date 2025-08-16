@@ -14,7 +14,7 @@ const NewScreen: React.FC = () => {
 
   const handleStartBuilding = () => {
     if (input.trim()) {
-      navigate("/create", { state: { initialPrompt: input } });
+      navigate("/create", { state: { initialPrompt: input, isDarkMode } });
     }
   };
 

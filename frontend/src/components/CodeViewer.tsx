@@ -10,9 +10,10 @@ interface CodeFile {
 interface CodeViewerProps {
   files: Record<string, string>;
   className?: string;
+  isDark?: boolean;
 }
 
-const CodeViewer: React.FC<CodeViewerProps> = ({ files, className }) => {
+const CodeViewer: React.FC<CodeViewerProps> = ({ files, className, isDark = true }) => {
   const [selectedFile, setSelectedFile] = useState<string>("");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const codeRef = useRef<HTMLElement>(null);
@@ -102,6 +103,7 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ files, className }) => {
             depth={depth}
             isSelected={selectedFile === item.fullPath}
             onClick={() => setSelectedFile(item.fullPath)}
+            isDark={isDark}
           >
             {getFileIcon(key)}
             <span>{key}</span>
@@ -114,6 +116,7 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ files, className }) => {
             <FolderItem
               depth={depth}
               onClick={() => toggleFolder(currentPath)}
+              isDark={isDark}
             >
               {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               <FolderIcon size={16} />
@@ -136,28 +139,28 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ files, className }) => {
 
   if (Object.keys(files).length === 0) {
     return (
-      <EmptyState className={className}>
+      <EmptyState className={className} isDark={isDark}>
         <p>No code files available</p>
       </EmptyState>
     );
   }
 
   return (
-    <CodeViewerContainer className={className}>
-      <FileTreePanel>
-        <FileTreeHeader>Files</FileTreeHeader>
-        <FileTree>
+    <CodeViewerContainer className={className} isDark={isDark}>
+      <FileTreePanel isDark={isDark}>
+        <FileTreeHeader isDark={isDark}>Files</FileTreeHeader>
+        <FileTree isDark={isDark}>
           {renderFileTree(organizedFiles)}
         </FileTree>
       </FileTreePanel>
       
-      <CodePanel>
+      <CodePanel isDark={isDark}>
         {selectedFile && (
           <>
-            <CodeHeader>
-              <FileName>{selectedFile}</FileName>
+            <CodeHeader isDark={isDark}>
+              <FileName isDark={isDark}>{selectedFile}</FileName>
             </CodeHeader>
-            <CodeContent>
+            <CodeContent isDark={isDark}>
               <pre>
                 <code ref={codeRef}>
                   {currentFileContent}
@@ -173,36 +176,39 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ files, className }) => {
 
 export default CodeViewer;
 
-const CodeViewerContainer = styled.div`
+const CodeViewerContainer = styled.div<{ isDark: boolean }>`
   display: flex;
   width: 100%;
   height: 100%;
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: ${({ isDark }) => isDark ? '#1e1e1e' : '#f0f0f0'};
+  color: ${({ isDark }) => isDark ? '#d4d4d4' : '#333'};
 `;
 
-const FileTreePanel = styled.div`
+const FileTreePanel = styled.div<{ isDark: boolean }>`
   width: 250px;
-  border-right: 1px solid #3e3e3e;
+  border-right: 1px solid ${({ isDark }) => isDark ? '#3e3e3e' : '#ccc'};
   display: flex;
   flex-direction: column;
+  background: ${({ isDark }) => isDark ? '#252526' : '#f5f5f5'};
 `;
 
-const FileTreeHeader = styled.div`
+const FileTreeHeader = styled.div<{ isDark: boolean }>`
   padding: 12px 16px;
-  background: #252526;
-  border-bottom: 1px solid #3e3e3e;
+  background: ${({ isDark }) => isDark ? '#252526' : '#e0e0e0'};
+  border-bottom: 1px solid ${({ isDark }) => isDark ? '#3e3e3e' : '#ccc'};
   font-weight: 500;
   font-size: 14px;
+  color: ${({ isDark }) => isDark ? '#d4d4d4' : '#333'};
 `;
 
-const FileTree = styled.div`
+const FileTree = styled.div<{ isDark: boolean }>`
   flex: 1;
   overflow-y: auto;
   padding: 8px 0;
+  background: ${({ isDark }) => isDark ? '#252526' : '#f5f5f5'};
 `;
 
-const FileItem = styled.div<{ depth: number; isSelected: boolean }>`
+const FileItem = styled.div<{ depth: number; isSelected: boolean; isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -210,15 +216,27 @@ const FileItem = styled.div<{ depth: number; isSelected: boolean }>`
   padding-left: ${({ depth }) => 16 + depth * 20}px;
   cursor: pointer;
   font-size: 14px;
-  background: ${({ isSelected }) => isSelected ? '#094771' : 'transparent'};
-  color: ${({ isSelected }) => isSelected ? '#ffffff' : '#cccccc'};
+  background: ${({ isSelected, isDark }) => 
+    isSelected 
+      ? (isDark ? '#094771' : '#e3f2fd')
+      : 'transparent'
+  };
+  color: ${({ isSelected, isDark }) => 
+    isSelected 
+      ? (isDark ? '#ffffff' : '#1976d2')
+      : (isDark ? '#cccccc' : '#666666')
+  };
   
   &:hover {
-    background: ${({ isSelected }) => isSelected ? '#094771' : '#2a2d2e'};
+    background: ${({ isSelected, isDark }) => 
+      isSelected 
+        ? (isDark ? '#094771' : '#e3f2fd')
+        : (isDark ? '#2a2d2e' : '#f0f0f0')
+    };
   }
 `;
 
-const FolderItem = styled.div<{ depth: number }>`
+const FolderItem = styled.div<{ depth: number; isDark?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -226,34 +244,37 @@ const FolderItem = styled.div<{ depth: number }>`
   padding-left: ${({ depth }) => 16 + depth * 20}px;
   cursor: pointer;
   font-size: 14px;
-  color: #cccccc;
+  color: ${({ isDark }) => isDark ? '#cccccc' : '#666666'};
   
   &:hover {
-    background: #2a2d2e;
+    background: ${({ isDark }) => isDark ? '#2a2d2e' : '#f0f0f0'};
   }
 `;
 
-const CodePanel = styled.div`
+const CodePanel = styled.div<{ isDark: boolean }>`
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: ${({ isDark }) => isDark ? '#1e1e1e' : '#f0f0f0'};
 `;
 
-const CodeHeader = styled.div`
+const CodeHeader = styled.div<{ isDark: boolean }>`
   padding: 12px 16px;
-  background: #252526;
-  border-bottom: 1px solid #3e3e3e;
+  background: ${({ isDark }) => isDark ? '#252526' : '#e0e0e0'};
+  border-bottom: 1px solid ${({ isDark }) => isDark ? '#3e3e3e' : '#ccc'};
   display: flex;
   align-items: center;
+  color: ${({ isDark }) => isDark ? '#d4d4d4' : '#333'};
 `;
 
-const FileName = styled.span`
+const FileName = styled.span<{ isDark: boolean }>`
   font-size: 14px;
   font-weight: 500;
+  color: ${({ isDark }) => isDark ? '#d4d4d4' : '#333'};
 `;
 
-const CodeContent = styled.div`
+const CodeContent = styled.div<{ isDark: boolean }>`
   flex: 1;
   overflow: auto;
   
@@ -274,12 +295,12 @@ const CodeContent = styled.div`
   }
 `;
 
-const EmptyState = styled.div`
+const EmptyState = styled.div<{ isDark?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: #1e1e1e;
-  color: #888;
+  background: ${({ isDark }) => isDark ? '#1e1e1e' : '#f0f0f0'};
+  color: ${({ isDark }) => isDark ? '#888' : '#666'};
   font-size: 16px;
 `;

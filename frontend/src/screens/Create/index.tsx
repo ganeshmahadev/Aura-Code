@@ -14,11 +14,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BEAM_CONFIG } from "../../config/beam";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { Message } from "../../types/messages";
 import styled from "styled-components";
 import { useLocation } from "react-router-dom";
 import { useMessageBus } from "../../hooks/useMessageBus";
 import CodeViewer from "../../components/CodeViewer";
+import ThemeToggle from "@/components/theme-toggle";
+import LovableIcon from "@/components/lovable-icon";
 
 const DEVICE_SPECS = {
   mobile: { width: 390, height: 844 },
@@ -36,8 +39,10 @@ const Create = () => {
   const [iframeReady, setIframeReady] = useState(false);
   const [isUpdateInProgress, setIsUpdateInProgress] = useState(false);
   const [initCompleted, setInitCompleted] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasConnectedRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
   const location = useLocation();
@@ -49,6 +54,32 @@ const Create = () => {
   const [codeFiles, setCodeFiles] = useState<Record<string, string>>({});
   const [sandboxId, setSandboxId] = useState<string>("");
   const sandboxIdRef = useRef<string>("");
+
+  // Initialize theme from navigation state
+  useEffect(() => {
+    if (location.state && location.state.isDarkMode !== undefined) {
+      setIsDarkMode(location.state.isDarkMode);
+    }
+  }, [location.state]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  // Auto-resize textarea
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const maxHeight = 144; // 6 lines * 24px
+      textareaRef.current.style.height = Math.min(scrollHeight, maxHeight) + 'px';
+    }
+  };
+
+  // Adjust textarea height when input value changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputValue]);
 
   const refreshIframe = useCallback(() => {
     if (iframeRef.current && iframeUrl && iframeUrl !== "/") {
@@ -463,6 +494,12 @@ const Create = () => {
           },
         },
       ]);
+      // Reset textarea height after sending
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '48px';
+        }
+      }, 0);
     }
   };
 
@@ -532,10 +569,10 @@ const Create = () => {
       <SpinningIcon>
         <Loader2 size={64} />
       </SpinningIcon>
-      <AnimatedText style={{ marginTop: "24px" }}>
+      <AnimatedText isDark={isDarkMode} style={{ marginTop: "24px" }}>
         Connecting to Workspace...
       </AnimatedText>
-      <p style={{ marginTop: "12px", textAlign: "center" }}>
+      <p style={{ marginTop: "12px", textAlign: "center", color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#1a1a1a' }}>
         Please wait while we setup your workspace and load the website.
       </p>
     </IframeErrorContainer>
@@ -546,20 +583,26 @@ const Create = () => {
       <SpinningIcon>
         <Loader2 size={64} />
       </SpinningIcon>
-      <AnimatedText style={{ marginTop: "24px" }}>
+      <AnimatedText isDark={isDarkMode} style={{ marginTop: "24px" }}>
         Updating Workspace...
       </AnimatedText>
-      <p style={{ marginTop: "12px", textAlign: "center" }}>
+      <p style={{ marginTop: "12px", textAlign: "center", color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#1a1a1a' }}>
         Please wait while we apply your changes to the website.
       </p>
     </IframeErrorContainer>
   );
 
   return (
-    <PageContainer>
-      <Sidebar style={{ width: `${sidebarWidth}px` }}>
+    <PageContainer isDark={isDarkMode}>
+      <Sidebar isDark={isDarkMode} style={{ width: `${sidebarWidth}px` }}>
         <BeamHeader>
-          <div>AuraCode</div>
+          <Logo>
+            <LogoIcon>
+              <LovableIcon size={14} />
+            </LogoIcon>
+            <LogoText isDark={isDarkMode}>AuraCode</LogoText>
+          </Logo>
+          <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
         </BeamHeader>
 
         <ChatHistory ref={chatHistoryRef}>
@@ -578,13 +621,14 @@ const Create = () => {
               >
                 <MessageBubble
                   isUser={msg.data.sender === Sender.USER}
-                  className="border w-full bg-muted-foreground/10 rounded-md text-sm text-muted-foreground"
+                  isDark={isDarkMode}
                 >
                   <p
                     style={{
                       whiteSpace: "pre-wrap",
-                      color:
-                        msg.data.sender === Sender.USER ? "white" : "gray12",
+                      color: msg.data.sender === Sender.USER 
+                        ? "white" 
+                        : (isDarkMode ? "rgba(255, 255, 255, 0.9)" : "#1a1a1a"),
                     }}
                   >
                     {String(msg.data.text || "")}
@@ -601,37 +645,47 @@ const Create = () => {
             ))}
         </ChatHistory>
 
-        <ChatInputContainer>
-          <Input
+        <ChatInputContainer isDark={isDarkMode}>
+          <StyledTextarea
             placeholder="Ask Aura..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
             disabled={!isConnected || !iframeReady}
+            isDark={isDarkMode}
+            rows={1}
+            ref={textareaRef}
           />
-          <Button
+          <ArrowButton
             onClick={handleSendMessage}
             disabled={!isConnected || !iframeReady || !inputValue.trim()}
+            isDark={isDarkMode}
           >
-            Send
-          </Button>
+            <ArrowIcon isDark={isDarkMode}>↑</ArrowIcon>
+          </ArrowButton>
         </ChatInputContainer>
       </Sidebar>
 
       <ResizeHandle onMouseDown={() => setIsResizing(true)} />
 
-      <MainContent hasIframe={!!iframeUrl} className="bg-card">
+      <MainContent hasIframe={!!iframeUrl} isDark={isDarkMode} className="bg-card">
         {isConnected ? (
           <IframeContainer>
-            <UrlBarContainer>
+            <UrlBarContainer isDark={isDarkMode}>
               <IconButton
+                isDark={isDarkMode}
                 style={{ cursor: iframeUrl ? "pointer" : "not-allowed" }}
                 onClick={iframeUrl ? refreshIframe : undefined}
                 title="Refresh"
               >
                 <RotateCcw size={16} />
               </IconButton>
-              <UrlInput value={iframeUrl || ""} readOnly />
+              <UrlInput isDark={isDarkMode} value={iframeUrl || ""} readOnly />
               <a
                 href={iframeUrl || undefined}
                 target="_blank"
@@ -648,17 +702,17 @@ const Create = () => {
             </UrlBarContainer>
             <IframeArea>
               {viewMode === "code" ? (
-                <CodeViewer files={codeFiles} />
+                <CodeViewer files={codeFiles} isDark={isDarkMode} />
               ) : iframeError ? (
                 <IframeErrorContainer>
                   <Heart size={64} />
-                  <ErrorTitle style={{ marginTop: "24px" }}>
+                  <ErrorTitle isDark={isDarkMode} style={{ marginTop: "24px" }}>
                     Failed to load website
                   </ErrorTitle>
-                  <ErrorText style={{ marginTop: "12px", textAlign: "center" }}>
+                  <ErrorText isDark={isDarkMode} style={{ marginTop: "12px", textAlign: "center" }}>
                     {iframeUrl} took too long to load or failed to respond.
                   </ErrorText>
-                  <ErrorText style={{ marginTop: "8px", textAlign: "center" }}>
+                  <ErrorText isDark={isDarkMode} style={{ marginTop: "8px", textAlign: "center" }}>
                     This could be due to network issues or the website being
                     temporarily unavailable.
                   </ErrorText>
@@ -754,22 +808,10 @@ const Create = () => {
                 </IframeResponsiveWrapper>
               )}
             </IframeArea>
-            <BottomBar>
+            <BottomBar isDark={isDarkMode}>
               <ToggleGroup>
-                <ToggleButton
-                  active={viewMode === "preview"}
-                  disabled={
-                    !iframeUrl ||
-                    !iframeReady ||
-                    isUpdateInProgress ||
-                    !initCompleted
-                  }
-                  onClick={() => setViewMode("preview")}
-                >
-                  Preview
-                </ToggleButton>
-                <ToggleButton
-                  active={viewMode === "code"}
+                <CodeToggleButton
+                  isDark={isDarkMode}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
@@ -777,18 +819,23 @@ const Create = () => {
                     !initCompleted
                   }
                   onClick={() => {
-                    setViewMode("code");
-                    if (sandboxId && Object.keys(codeFiles).length === 0) {
+                    const newViewMode = viewMode === "preview" ? "code" : "preview";
+                    setViewMode(newViewMode);
+                    if (newViewMode === "code" && sandboxId && Object.keys(codeFiles).length === 0) {
                       fetchCodeFiles(sandboxId);
                     }
                   }}
+                  title={viewMode === "preview" ? "View Code" : "View Preview"}
                 >
-                  Code
-                </ToggleButton>
+                  <svg width="20" height="20" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="currentColor" d="M9.81175,1.23848 C10.3070964,1.37121929 10.6154651,1.85349541 10.5425767,2.3488407 L10.5189,2.46323 L7.41303,14.0543 C7.27009,14.5878 6.72175,14.9044 6.18828,14.7614 C5.69292429,14.6287071 5.38457224,14.1464602 5.45749504,13.6510948 L5.48118,13.5367 L8.58701,1.94559 C8.72995,1.41213 9.27829,1.09554 9.81175,1.23848 Z M4.70711,4.29288 C5.09763,4.68341 5.09763,5.31657 4.70711,5.7071 L2.41421,7.99999 L4.70711,10.2929 C5.09763,10.6834 5.09763,11.3166 4.70711,11.7071 C4.31658,12.0976 3.68342,12.0976 3.29289,11.7071 L0.292893,8.7071 C-0.0976311,8.31657 -0.0976311,7.68341 0.292893,7.29288 L3.29289,4.29288 C3.68342,3.90236 4.31658,3.90236 4.70711,4.29288 Z M11.2929,4.29288 C11.6533615,3.9324 12.2206207,3.90467077 12.6128973,4.20969231 L12.7071,4.29288 L15.7071,7.29288 C16.0675615,7.65336923 16.0952893,8.22059645 15.7902834,8.61289152 L15.7071,8.7071 L12.7071,11.7071 C12.3166,12.0976 11.6834,12.0976 11.2929,11.7071 C10.9324385,11.3466385 10.9047107,10.7793793 11.2097166,10.3871027 L11.2929,10.2929 L13.5858,7.99999 L11.2929,5.7071 C10.9024,5.31657 10.9024,4.68341 11.2929,4.29288 Z"/>
+                  </svg>
+                </CodeToggleButton>
               </ToggleGroup>
               <DeviceGroup>
                 <DeviceButton
                   active={selectedDevice === "mobile"}
+                  isDark={isDarkMode}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
@@ -801,6 +848,7 @@ const Create = () => {
                 </DeviceButton>
                 <DeviceButton
                   active={selectedDevice === "tablet"}
+                  isDark={isDarkMode}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
@@ -813,6 +861,7 @@ const Create = () => {
                 </DeviceButton>
                 <DeviceButton
                   active={selectedDevice === "desktop"}
+                  isDark={isDarkMode}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
@@ -825,6 +874,7 @@ const Create = () => {
                 </DeviceButton>
               </DeviceGroup>
               <DeployButton
+                isDark={isDarkMode}
                 disabled={
                   !iframeUrl ||
                   !iframeReady ||
@@ -838,8 +888,9 @@ const Create = () => {
           </IframeContainer>
         ) : (
           <>
-            <Heart size={64} />
+            
             <ConnectTitle
+              isDark={isDarkMode}
               style={{ marginTop: "24px" }}
               className="text-muted-foreground"
             >
@@ -848,22 +899,22 @@ const Create = () => {
 
             {error && (
               <ErrorMessage className="text-destructive">
-                <ErrorText>Error: {error}</ErrorText>
+                <ErrorText isDark={isDarkMode}>Error: {error}</ErrorText>
               </ErrorMessage>
             )}
 
             <Checklist>
               <ChecklistItem>
                 <Play size={16} />
-                <ChecklistText>Connect to Workspace</ChecklistText>
+                <ChecklistText isDark={isDarkMode}>Connect to Workspace</ChecklistText>
               </ChecklistItem>
               <ChecklistItem>
                 <Play size={16} />
-                <ChecklistText>Chat with AI in the sidebar</ChecklistText>
+                <ChecklistText isDark={isDarkMode}>Chat with AI in the sidebar</ChecklistText>
               </ChecklistItem>
               <ChecklistItem>
                 <Play size={16} />
-                <ChecklistText>
+                <ChecklistText isDark={isDarkMode}>
                   Select specific elements to modify
                 </ChecklistText>
               </ChecklistItem>
@@ -877,28 +928,58 @@ const Create = () => {
 
 export default Create;
 
-const PageContainer = styled.div`
+const PageContainer = styled.div<{ isDark: boolean }>`
   display: flex;
   flex-direction: row;
   width: 100%;
   height: 100%;
+  background: ${props => props.isDark 
+    ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #7209b7 100%)'
+    : 'linear-gradient(135deg, #a8edea 0%, #fed6e3 50%, #ffecd2 100%)'
+  };
+  position: relative;
+  overflow: hidden;
+  transition: background 0.5s ease;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: ${props => props.isDark ? '0.3' : '0.2'};
+    pointer-events: none;
+  }
 `;
 
-const Sidebar = styled.div`
+const Sidebar = styled.div<{ isDark?: boolean }>`
   padding: 24px;
   display: flex;
   flex-direction: column;
-  color: white;
+  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
   gap: 24px;
+  background: ${({ isDark }) => 
+    isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)'
+  };
+  backdrop-filter: blur(20px);
+  border-right: 1px solid ${({ isDark }) => 
+    isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'
+  };
+  position: relative;
+  z-index: 2;
 `;
 
-const MainContent = styled.div<{ hasIframe: boolean }>`
+const MainContent = styled.div<{ hasIframe: boolean; isDark: boolean }>`
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   align-items: ${({ hasIframe }) => (hasIframe ? "stretch" : "center")};
   justify-content: ${({ hasIframe }) => (hasIframe ? "stretch" : "center")};
   gap: ${({ hasIframe }) => (hasIframe ? "0" : "24px")};
+  position: relative;
+  z-index: 1;
 `;
 
 const Checklist = styled.div`
@@ -919,7 +1000,30 @@ const BeamHeader = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+`;
+
+const Logo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const LogoIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #7c3aed;
+  border-radius: 8px;
+  padding: 4px;
+`;
+
+const LogoText = styled.div<{ isDark?: boolean }>`
+  font-size: 16px;
+  font-weight: 700;
+  color: ${({ isDark }) => (isDark ? "white" : "#1a1a1a")};
+  font-family: 'Montserrat', sans-serif;
 `;
 
 const ChatHistory = styled.div`
@@ -928,6 +1032,24 @@ const ChatHistory = styled.div`
   gap: 10px;
   overflow-y: auto;
   flex-grow: 1;
+  
+  /* Hide scrollbar */
+  &::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  
+  /* Firefox */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 `;
 
 const MessageContainer = styled.div<{ isUser: boolean }>`
@@ -936,17 +1058,140 @@ const MessageContainer = styled.div<{ isUser: boolean }>`
   justify-content: ${({ isUser }) => (isUser ? "flex-end" : "flex-start")};
 `;
 
-const MessageBubble = styled.div<{ isUser: boolean }>`
+const MessageBubble = styled.div<{ isUser: boolean; isDark?: boolean }>`
   padding: 12px;
   border-radius: 8px;
   max-width: 70%;
+  background: ${({ isUser, isDark }) => 
+    isUser 
+      ? (isDark ? 'rgba(124, 58, 237, 0.8)' : 'rgba(124, 58, 237, 0.9)')
+      : (isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.3)')
+  };
+  color: ${({ isUser, isDark }) => 
+    isUser ? 'white' : (isDark ? 'white' : '#1a1a1a')
+  };
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ isUser, isDark }) => 
+    isUser 
+      ? (isDark ? 'rgba(124, 58, 237, 0.3)' : 'rgba(124, 58, 237, 0.4)')
+      : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)')
+  };
 `;
 
-const ChatInputContainer = styled.div`
+const ChatInputContainer = styled.div<{ isDark: boolean }>`
   margin-top: auto;
+  position: relative;
+  background: ${({ isDark }) => isDark 
+    ? 'rgba(0, 0, 0, 0.3)' 
+    : 'rgba(255, 255, 255, 0.3)'
+  };
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid ${({ isDark }) => isDark 
+    ? 'rgba(255, 255, 255, 0.1)' 
+    : 'rgba(255, 255, 255, 0.4)'
+  };
+  transition: all 0.3s ease;
+  box-shadow: ${({ isDark }) => isDark 
+    ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+    : '0 8px 32px rgba(0, 0, 0, 0.1)'
+  };
+`;
+
+const StyledTextarea = styled(Textarea)<{ isDark: boolean }>`
+  background: transparent;
+  border: none;
+  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  font-size: 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  padding: 0 60px 0 0;
+  resize: none;
+  min-height: 60px;
+  max-height: 144px;
+  overflow-y: auto;
+  letter-spacing: -0.1px;
+  width: 100%;
+  
+  &::placeholder {
+    color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.6)'};
+    font-weight: 400;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  /* Hide scrollbar */
+  &::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  
+  /* Firefox */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+`;
+
+const ArrowButton = styled.button<{ isDark: boolean }>`
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  background: ${({ isDark }) => isDark 
+    ? 'rgba(255, 255, 255, 0.15)' 
+    : 'rgba(255, 255, 255, 0.4)'
+  };
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
-  flex-direction: row;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  
+  &:hover:not(:disabled) {
+    background: ${({ isDark }) => isDark 
+      ? 'rgba(255, 255, 255, 0.25)' 
+      : 'rgba(255, 255, 255, 0.5)'
+    };
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const ArrowIcon = styled.span<{ isDark: boolean }>`
+  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  font-size: 18px;
+  font-weight: bold;
+  font-family: 'Montserrat', sans-serif;
 `;
 
 const ErrorMessage = styled.div`
@@ -1016,7 +1261,7 @@ const IframeContainer = styled.div`
 const IframeArea = styled.div`
   position: relative;
   width: 100%;
-  height: calc(100% - 56px - 40px); /* subtract bottom bar and url bar height */
+  height: calc(100% - 44px - 40px); /* subtract bottom bar and url bar height */
   min-height: 0;
   padding: 0;
   margin: 0;
@@ -1084,26 +1329,27 @@ const SpinningIcon = styled.div`
   }
 `;
 
-const IconButton = styled.button`
+const IconButton = styled.button<{ isDark?: boolean }>`
   background: none;
   border: none;
-  color: #374151;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.8)' : '#1a1a1a'};
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 4px;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #f8f9fa;
+    background-color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
   }
 `;
 
-const AnimatedText = styled.div`
+const AnimatedText = styled.div<{ isDark?: boolean }>`
   font-size: 18px;
   font-weight: 500;
-  color: #374151;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.9)' : '#1a1a1a'};
   animation: pulse 1.5s infinite;
 
   @keyframes pulse {
@@ -1119,60 +1365,68 @@ const AnimatedText = styled.div`
   }
 `;
 
-const ErrorTitle = styled.div`
+const ErrorTitle = styled.div<{ isDark?: boolean }>`
   font-size: 18px;
   font-weight: 500;
-  color: #374151;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.9)' : '#1a1a1a'};
 `;
 
-const ErrorText = styled.div`
+const ErrorText = styled.div<{ isDark?: boolean }>`
   font-size: 14px;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : '#1a1a1a'};
 `;
 
-const ConnectTitle = styled.div`
+const ConnectTitle = styled.div<{ isDark?: boolean }>`
   font-size: 18px;
   font-weight: 500;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.9)' : '#1a1a1a'};
 `;
 
-const ChecklistText = styled.div`
+const ChecklistText = styled.div<{ isDark?: boolean }>`
   font-size: 14px;
-  color: #6b7280;
+  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : '#1a1a1a'};
 `;
 
-const UrlBarContainer = styled.div`
+const UrlBarContainer = styled.div<{ isDark: boolean }>`
   display: flex;
   align-items: center;
-  background: #e9ecef;
-  border-bottom: 1px solid #e5e7eb;
+  background: ${({ isDark }) => isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)'};
+  border-bottom: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'};
   padding: 6px 12px;
   gap: 8px;
+  backdrop-filter: blur(20px);
 `;
 
-const UrlInput = styled.input`
+const UrlInput = styled.input<{ isDark: boolean }>`
   flex: 1;
-  background: #f1f3f5;
-  border: none;
-  color: #374151;
+  background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+  border: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'};
+  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 14px;
   outline: none;
+  
+  &::placeholder {
+    color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.5)'};
+  }
 `;
 
-const BottomBar = styled.div`
+const BottomBar = styled.div<{ isDark: boolean }>`
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #e9ecef;
-  border-top: 1px solid #e5e7eb;
+  background: ${({ isDark }) => isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)'};
+  border-top: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'};
   padding: 0 24px;
-  height: 56px;
+  height: 43px;
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 3;
+  backdrop-filter: blur(20px);
 `;
 
 const ToggleGroup = styled.div`
@@ -1180,19 +1434,28 @@ const ToggleGroup = styled.div`
   gap: 8px;
 `;
 
-const ToggleButton = styled.button<{ active?: boolean }>`
-  background: ${({ active }) => (active ? "#f8f9fa" : "#e9ecef")};
-  color: ${({ active, disabled }) =>
-    disabled ? "#9ca3af" : active ? "#1f2937" : "#6b7280"};
-  border: 1px solid #d1d5db;
+const CodeToggleButton = styled.button<{ isDark?: boolean }>`
+  background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+  color: ${({ disabled, isDark }) =>
+    disabled 
+      ? (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)')
+      : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)')
+  };
+  border: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'};
   border-radius: 6px;
-  padding: 6px 18px;
-  font-size: 15px;
-  font-weight: 500;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.15s ease;
+  
   &:hover:not(:disabled) {
-    background: #e5e7eb;
+    background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'};
+  }
+  
+  svg {
+    transition: all 0.15s ease;
   }
 `;
 
@@ -1201,24 +1464,37 @@ const DeviceGroup = styled.div`
   gap: 8px;
 `;
 
-const DeviceButton = styled.button<{ active?: boolean }>`
-  background: ${({ active }) => (active ? "#3b82f6" : "#e9ecef")};
-  color: ${({ active, disabled }) =>
-    disabled ? "#9ca3af" : active ? "white" : "#6b7280"};
-  border: 1px solid #d1d5db;
+const DeviceButton = styled.button<{ active?: boolean; isDark?: boolean }>`
+  background: ${({ active, isDark }) => 
+    active 
+      ? (isDark ? '#7c3aed' : '#7c3aed')
+      : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)')
+  };
+  color: ${({ active, disabled, isDark }) =>
+    disabled 
+      ? (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)')
+      : active 
+        ? 'white'
+        : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)')
+  };
+  border: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'};
   border-radius: 6px;
   padding: 6px 14px;
   font-size: 14px;
   font-weight: 500;
   cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.15s ease;
+  
   &:hover:not(:disabled) {
-    background: #1d4ed8;
-    color: white;
+    background: ${({ active, isDark }) => 
+      active 
+        ? '#6d28d9'
+        : (isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)')
+    };
   }
 `;
 
-const DeployButton = styled.button`
+const DeployButton = styled.button<{ isDark?: boolean }>`
   background: #7c3aed;
   color: white;
   border: none;
@@ -1227,9 +1503,11 @@ const DeployButton = styled.button`
   font-size: 15px;
   font-weight: 600;
   cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
-  transition: background 0.15s;
+  transition: all 0.15s ease;
   opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
+  
   &:hover:not(:disabled) {
     background: #6d28d9;
+    transform: translateY(-1px);
   }
 `;
