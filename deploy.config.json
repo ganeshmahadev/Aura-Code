@@ -1,0 +1,24 @@
+{
+  "deployments": {
+    "mcp_server": {
+      "name": "lovable-mcp-server",
+      "url": "https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud",
+      "sse_url": "https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud/sse",
+      "command": "beam deploy src/tools.py:s --name lovable-mcp-server"
+    },
+    "agent": {
+      "name": "lovable-agent", 
+      "url": "wss://lovable-agent-32a2c27-v1.app.beam.cloud",
+      "command": "beam deploy src/agent.py:handler --name lovable-agent"
+    }
+  },
+  "secrets": {
+    "LOVABLE_MCP_URL": "https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud/sse",
+    "OPENAI_API_KEY": "configured"
+  },
+  "frontend": {
+    "env_file": "frontend/.env",
+    "ws_url": "wss://lovable-agent-32a2c27-v1.app.beam.cloud",
+    "local_url": "http://localhost:5173"
+  }
+}
