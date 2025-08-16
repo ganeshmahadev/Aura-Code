@@ -18,6 +18,7 @@ import type { Message } from "../../types/messages";
 import styled from "styled-components";
 import { useLocation } from "react-router-dom";
 import { useMessageBus } from "../../hooks/useMessageBus";
+import CodeViewer from "../../components/CodeViewer";
 
 const DEVICE_SPECS = {
   mobile: { width: 390, height: 844 },
@@ -44,6 +45,10 @@ const Create = () => {
   const [selectedDevice, setSelectedDevice] = useState<
     "mobile" | "tablet" | "desktop"
   >("desktop");
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [codeFiles, setCodeFiles] = useState<Record<string, string>>({});
+  const [sandboxId, setSandboxId] = useState<string>("");
+  const sandboxIdRef = useRef<string>("");
 
   const refreshIframe = useCallback(() => {
     if (iframeRef.current && iframeUrl && iframeUrl !== "/") {
@@ -90,7 +95,11 @@ const Create = () => {
 
       if (typeof message.data.url === "string" && message.data.sandbox_id) {
         setIframeUrl(message.data.url);
+        setSandboxId(message.data.sandbox_id);
+        sandboxIdRef.current = message.data.sandbox_id;
         setIframeError(false);
+        // Fetch initial code files
+        fetchCodeFiles(message.data.sandbox_id);
       }
 
       setMessages((prev) => {
@@ -357,6 +366,17 @@ const Create = () => {
         ];
       });
       refreshIframe();
+      // Refetch code files if we're in code view or have fetched them before
+      if (sandboxIdRef.current && (viewMode === "code" || Object.keys(codeFiles).length > 0)) {
+        fetchCodeFiles(sandboxIdRef.current);
+      }
+    },
+
+    [MessageType.CODE_DISPLAY_RESPONSE]: (message: Message) => {
+      if (message.data.files) {
+        setCodeFiles(message.data.files);
+        console.log("Received code files:", Object.keys(message.data.files));
+      }
     },
   };
 
@@ -386,6 +406,16 @@ const Create = () => {
       console.error("Processed error:", errorString);
     },
   });
+
+  // Define fetchCodeFiles after send is available
+  const fetchCodeFiles = useCallback((sandbox_id: string) => {
+    try {
+      console.log("Fetching code files for sandbox:", sandbox_id);
+      send(MessageType.GET_CODE_FOR_DISPLAY, { sandbox_id });
+    } catch (error) {
+      console.error("Failed to fetch code files:", error);
+    }
+  }, [send]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -617,7 +647,9 @@ const Create = () => {
               </a>
             </UrlBarContainer>
             <IframeArea>
-              {iframeError ? (
+              {viewMode === "code" ? (
+                <CodeViewer files={codeFiles} />
+              ) : iframeError ? (
                 <IframeErrorContainer>
                   <Heart size={64} />
                   <ErrorTitle style={{ marginTop: "24px" }}>
@@ -725,24 +757,31 @@ const Create = () => {
             <BottomBar>
               <ToggleGroup>
                 <ToggleButton
-                  active={true}
+                  active={viewMode === "preview"}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
                     isUpdateInProgress ||
                     !initCompleted
                   }
+                  onClick={() => setViewMode("preview")}
                 >
                   Preview
                 </ToggleButton>
                 <ToggleButton
-                  active={false}
+                  active={viewMode === "code"}
                   disabled={
                     !iframeUrl ||
                     !iframeReady ||
                     isUpdateInProgress ||
                     !initCompleted
                   }
+                  onClick={() => {
+                    setViewMode("code");
+                    if (sandboxId && Object.keys(codeFiles).length === 0) {
+                      fetchCodeFiles(sandboxId);
+                    }
+                  }}
                 >
                   Code
                 </ToggleButton>

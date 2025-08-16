@@ -44,8 +44,8 @@ dev: start
 # Deploy all services
 deploy: deploy-mcp deploy-agent
 	@echo "✅ All services deployed with permanent URLs!"
-	@echo "🔧 MCP Server:    https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud"
-	@echo "🤖 Agent Service: wss://lovable-agent-32a2c27-v1.app.beam.cloud"
+	@echo "🔧 MCP Server:    https://lovable-mcp-server-6b17ffd-v5.app.beam.cloud"
+	@echo "🤖 Agent Service: wss://lovable-agent-32a2c27-v2.app.beam.cloud"
 	@echo "🌐 Frontend:      Run 'make frontend' to start"
 
 # Deploy MCP server
@@ -53,7 +53,7 @@ deploy-mcp:
 	@echo "📦 Deploying MCP server..."
 	beam deploy src/tools.py:s --name lovable-mcp-server
 	beam secret delete LOVABLE_MCP_URL || true
-	beam secret create LOVABLE_MCP_URL 'https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud/sse'
+	beam secret create LOVABLE_MCP_URL 'https://lovable-mcp-server-6b17ffd-v5.app.beam.cloud/sse'
 	@echo "✅ MCP server deployed with permanent URL"
 
 # Deploy agent service  
@@ -75,8 +75,8 @@ status:
 # Start frontend only (uses deployed services)
 frontend:
 	@echo "🌐 Starting frontend with deployed services..."
-	@echo "   MCP Server:  https://lovable-mcp-server-6b17ffd-v1.app.beam.cloud"
-	@echo "   Agent:       wss://lovable-agent-32a2c27-v1.app.beam.cloud"
+	@echo "   MCP Server:  https://lovable-mcp-server-6b17ffd-v5.app.beam.cloud"
+	@echo "   Agent:       wss://lovable-agent-32a2c27-v2.app.beam.cloud"
 	@echo "   Frontend:    http://localhost:5173/"
 	@echo ""
 	cd frontend && npm run dev

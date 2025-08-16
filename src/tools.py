@@ -111,4 +111,56 @@ def edit_code(sandbox_id: str, code_map: dict) -> dict:
     return {"sandbox_id": sandbox.sandbox_id()}
 
 
+@mcp.tool
+def get_code_for_display(sandbox_id: str) -> dict:
+    """Fetch code files from sandbox for display in the frontend"""
+    print(f"Getting code for display from sandbox {sandbox_id}")
+    
+    sandbox = Sandbox().connect(sandbox_id)
+    sandbox.update_ttl(300)
+    
+    file_map = {}
+    
+    def _process_directory(dir_path: str):
+        try:
+            for file in sandbox.fs.list_files(dir_path):
+                full_path = Path(dir_path) / file.name
+                
+                if file.is_dir:
+                    # Recursively process subdirectories
+                    _process_directory(str(full_path))
+                else:
+                    # Only include certain file types for display
+                    if full_path.suffix in ['.tsx', '.ts', '.jsx', '.js', '.css', '.json', '.html']:
+                        try:
+                            with tempfile.NamedTemporaryFile() as temp_file:
+                                sandbox.fs.download_file(str(full_path), temp_file.name)
+                                temp_file.seek(0)
+                                file_content = temp_file.read().decode('utf-8')
+                                # Convert to relative path for display
+                                relative_path = str(full_path).replace(DEFAULT_CODE_PATH + "/", "")
+                                file_map[relative_path] = file_content
+                        except Exception as e:
+                            print(f"Error reading file {full_path}: {e}")
+        except Exception as e:
+            print(f"Error listing directory {dir_path}: {e}")
+    
+    _process_directory(DEFAULT_CODE_PATH)
+    
+    # Also get package.json for reference
+    try:
+        with tempfile.NamedTemporaryFile() as temp_file:
+            sandbox.fs.download_file(f"{DEFAULT_PROJECT_ROOT}/package.json", temp_file.name)
+            temp_file.seek(0)
+            package_json = temp_file.read().decode("utf-8")
+            file_map["package.json"] = package_json
+    except Exception as e:
+        print(f"Error reading package.json: {e}")
+    
+    return {
+        "sandbox_id": sandbox_id,
+        "files": file_map
+    }
+
+
 s = MCPServer(mcp, cpu=1, memory=1024, keep_warm_seconds=600, concurrent_requests=1000)

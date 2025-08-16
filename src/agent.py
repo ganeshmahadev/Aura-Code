@@ -25,6 +25,8 @@ class MessageType(Enum):
     AGENT_FINAL = "agent_final"
     LOAD_CODE = "load_code"
     EDIT_CODE = "edit_code"
+    GET_CODE_FOR_DISPLAY = "get_code_for_display"
+    CODE_DISPLAY_RESPONSE = "code_display_response"
     UPDATE_IN_PROGRESS = "update_in_progress"
     UPDATE_FILE = "update_file"
     UPDATE_COMPLETED = "update_completed"
@@ -59,6 +61,7 @@ class ToolType(Enum):
     CREATE_APP_ENVIRONMENT = "create_app_environment"
     LOAD_CODE = "load_code"
     EDIT_CODE = "edit_code"
+    GET_CODE_FOR_DISPLAY = "get_code_for_display"
 
 
 class Agent:
@@ -101,6 +104,14 @@ class Agent:
                     "sandbox_id": sandbox_id,
                     "code_map": code_map,
                 },
+            )
+            return json.loads(response.content[0].text)
+
+    async def get_code_for_display(self, sandbox_id: str):
+        async with mcp_session(self.mcp_url) as session:
+            response: CallToolResult = await session.call_tool(
+                name=ToolType.GET_CODE_FOR_DISPLAY.value,
+                arguments={"sandbox_id": sandbox_id},
             )
             return json.loads(response.content[0].text)
 
@@ -208,5 +219,8 @@ async def handler(event, context):
         case MessageType.LOAD_CODE.value:
             code_map = await agent.load_code(msg["data"]["sandbox_id"])
             return Message.new(MessageType.LOAD_CODE, code_map).to_dict()
+        case MessageType.GET_CODE_FOR_DISPLAY.value:
+            code_data = await agent.get_code_for_display(msg["data"]["sandbox_id"])
+            return Message.new(MessageType.CODE_DISPLAY_RESPONSE, code_data).to_dict()
         case _:
             return {}

@@ -1,6 +1,8 @@
 export enum MessageType {
   INIT = "init",
   LOAD_CODE = "load_code",
+  GET_CODE_FOR_DISPLAY = "get_code_for_display",
+  CODE_DISPLAY_RESPONSE = "code_display_response",
   ERROR = "error",
   PING = "ping",
   AGENT_FINAL = "agent_final",

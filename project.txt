@@ -1,0 +1,638 @@
+ 🏗️ Lovable Clone Architecture Deep Dive
+
+  📋 Component Overview (From the Diagram)
+
+￼
+
+  🧩 Component Breakdown
+
+  1. 🌐 Client (React Frontend)
+
+  - Location: frontend/ directory
+  - Purpose: User interface where developers interact with the AI
+  - Technology: React + Vite + TypeScript + shadcn/ui
+  - Communication: WebSocket to Agent Service
+  - What it does:
+    - Provides chat interface for user requests
+    - Shows real-time AI responses
+    - Displays live previews of generated apps
+    - Handles user input and displays results
+
+  2. 🤖 Agent (WebSocket Server + FastAPI)
+
+  - Location: src/agent.py
+  - Purpose: Central orchestrator that manages the entire flow
+  - Technology: Python + FastAPI + WebSocket + Beam realtime
+  - Communication:
+    - WebSocket ↔ Frontend
+    - SSE/HTTP ↔ MCP Server
+    - API calls → BAML → OpenAI
+  - What it does:
+    - Receives user requests from frontend
+    - Processes requests through BAML/OpenAI
+    - Manages conversation history
+    - Orchestrates code generation and sandbox operations
+    - Streams responses back to frontend in real-time
+
+  3. 🔧 MCP Server (Model Context Protocol)
+
+  - Location: src/tools.py
+  - Purpose: Provides tools for sandbox management
+  - Technology: FastMCP (Python framework)
+  - Communication: SSE/HTTP with Agent
+  - Tools Provided:
+    - create_app_environment: Creates new React sandbox
+    - load_code: Retrieves code from sandbox
+    - edit_code: Updates code in sandbox
+  - What it does:
+    - Manages isolated compute environments
+    - Handles file operations in sandboxes
+    - Provides safe code execution environment
+
+  4. 🧠 BAML Client (AI Model Interface)
+
+  - Location: baml_client/ directory
+  - Purpose: Type-safe interface to AI models
+  - Technology: BAML (Boundary AI Markup Language)
+  - Communication: HTTP API calls to OpenAI
+  - What it does:
+    - Provides structured prompts for code generation
+    - Handles AI model communication
+    - Ensures type-safe responses
+    - Manages prompt templates and schemas
+
+  5. 📦 Sandboxed Compute Environment
+
+  - Location: Beam Sandbox (cloud)
+  - Purpose: Isolated environment for running React apps
+  - Technology: Docker containers on Beam
+  - Features:
+    - Node.js 20 runtime
+    - Pre-installed React + Vite + shadcn/ui
+    - Port 3000 exposed for live preview
+    - File system operations
+
+  6. ☁️ Beam Platform
+
+  - Purpose: Cloud infrastructure provider
+  - What it provides:
+    - Serverless compute (for Agent and MCP)
+    - Container sandboxes (for React apps)
+    - Networking and load balancing
+    - Deployment and scaling
+
+  ---
+  🔄 Communication Flow Detailed
+
+  Step-by-Step Request Flow:
+
+  1. User Input
+     └── Frontend (React)
+         └── [WebSocket Message]
+
+  2. Agent Processing
+     └── Agent Service receives request
+         ├── Calls BAML Client
+         │   └── [HTTP] → OpenAI API
+         │       └── Returns structured response
+         └── Calls MCP Server tools
+             └── [SSE/HTTP] → FastMCP server
+                 └── Manages sandbox operations
+
+  3. Sandbox Operations
+     └── MCP Server
+         ├── create_app_environment()
+         ├── load_code()
+         └── edit_code()
+             └── [Container Operations] → Beam Sandbox
+                 └── File system + React app
+
+  4. Response Streaming
+     └── Agent streams response back
+         └── [WebSocket] → Frontend
+             └── Real-time UI updates
+
+  🎯 Why Each Technology is Used
+
+  🔤 BAML (Boundary AI Markup Language)
+
+  - Purpose: Type-safe AI model interface
+  - Why used here:
+    - Provides structured prompts for consistent code generation
+    - Ensures type safety between AI responses and application code
+    - Handles prompt engineering and model communication
+    - Makes AI integration more reliable and maintainable
+
+  BAML Example (from baml_src/build.baml):
+  function EditCode(
+    history: ConvoMessage[],
+    user_request: string,
+    code_files: CodeFile[],
+    package_json: string
+  ) -> CodeChanges {
+    client GPT4o
+    prompt #"
+      You are an expert React developer. Given the conversation history,
+      user request, and current code files, generate the necessary changes.
+      
+      History: {{ history }}
+      Request: {{ user_request }}
+      Current Code: {{ code_files }}
+
+      Return structured changes in the specified format.
+    "#
+  }
+
+  🔌 MCP (Model Context Protocol)
+
+  - Purpose: Standardized way to provide tools to AI models
+  - Why used here:
+    - AI needs to perform actions (create files, run code)
+    - MCP provides a secure, standardized interface
+    - Allows AI to call functions in isolated environments
+    - Better than direct file system access
+
+  🌐 WebSocket for Agent Communication
+
+  - Purpose: Real-time bidirectional communication
+  - Why used here:
+    - AI responses need to stream in real-time
+    - User sees progress as AI generates code
+    - Better UX than HTTP polling
+    - Maintains persistent connection for conversation
+
+  📡 SSE (Server-Sent Events) for MCP
+
+  - Purpose: One-way streaming from server to client
+  - Why used here:
+    - MCP server needs to send tool responses
+    - Simpler than WebSocket for tool communication
+    - Standard protocol for MCP implementations
+
+  🏗️ Architecture Benefits
+
+  🔒 Security & Isolation
+
+  - Sandboxed environments prevent malicious code execution
+  - Each React app runs in isolated container
+  - No direct file system access from AI
+
+  📈 Scalability
+
+  - Each component can scale independently
+  - Beam handles infrastructure automatically
+  - Stateless design allows horizontal scaling
+
+  🔧 Modularity
+
+  - MCP server can be used by other AI agents
+  - BAML client can be reused for different models
+  - Frontend can connect to different agents
+
+  🚀 Performance
+
+  - Real-time streaming for better UX
+  - Efficient WebSocket communication
+  - Cached containers for fast sandbox startup
+
+  💡 Key Architectural Insights
+
+  1. Separation of Concerns: Each component has a single responsibility
+  2. Type Safety: BAML ensures reliable AI integration
+  3. Real-time Communication: WebSocket + SSE for live updates
+  4. Secure Execution: Sandboxed environments for code safety
+  5. Cloud-Native: Built for serverless deployment on Beam
+
+
+  ---
+  PHASE 1: Frontend User Interaction
+
+  Step 1.1: User Input Capture
+
+  // frontend/src/components/ChatInput.tsx
+  const handleSubmit = (message: string) => {
+    const userMessage = {
+      id: generateId(),
+      type: 'USER',
+      data: { text: "Create a todo app with dark mode" },
+      timestamp: Date.now()
+    };
+
+    // Send via WebSocket to Agent
+    websocket.send(JSON.stringify(userMessage));
+  }
+
+  Step 1.2: WebSocket Message Transmission
+
+  // frontend/src/services/websocketBus.ts
+  class WebSocketBus {
+    connect(url: string) {
+      this.ws = new WebSocket('wss://lovable-agent-32a2c27-v1.app.beam.cloud');
+      this.ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        this.handleIncomingMessage(message);
+      };
+    }
+  }
+
+  Interview Point: "The frontend uses WebSocket for real-time bidirectional communication. Unlike REST 
+  APIs, WebSocket maintains a persistent connection, allowing the AI to stream responses back as they're
+   generated."
+
+  ---
+  PHASE 2: Agent Service Orchestration
+
+  Step 2.1: Message Reception & Parsing
+
+  # src/agent.py - handler function
+  @realtime(cpu=1.0, memory=1024, on_start=_load_agent)
+  async def handler(event, context):
+      agent: Agent = context.on_start_value
+      msg = json.loads(event)  # Parse incoming WebSocket message
+
+      match msg.get("type"):
+          case MessageType.USER.value:
+              # Stream AI response back to frontend
+              return agent.send_feedback(msg["data"]["text"])
+          case MessageType.INIT.value:
+              await agent.init()
+              return Message.new(MessageType.INIT, agent.init_data).to_dict()
+
+  Step 2.2: Agent Initialization (if first request)
+
+  # src/agent.py - init method
+  async def init(self):
+      await self.load_tools()           # Get available MCP tools
+      await self.create_app_environment()  # Create React sandbox
+
+  async def create_app_environment(self):
+      async with mcp_session(self.mcp_url) as session:
+          response = await session.call_tool(
+              name="create_app_environment",
+              arguments={}
+          )
+          self.init_data = json.loads(response.content[0].text)
+
+  Interview Point: "The Agent acts as an orchestrator. It maintains conversation state, manages the AI 
+  model interaction, and coordinates between the frontend and backend tools."
+
+  ---
+  PHASE 3: MCP Tool Execution
+
+  Step 3.1: Create Sandbox Environment
+
+  # src/tools.py - create_app_environment tool
+  @mcp.tool
+  def create_app_environment() -> dict:
+      print("Creating app environment...")
+
+      sandbox = Sandbox(
+          name="lovable-clone",
+          cpu=1,
+          memory=1024,
+          image=image,  # Node.js 20 + React + Vite + shadcn/ui
+          keep_warm_seconds=300,
+      ).create()
+
+      url = sandbox.expose_port(3000)  # Make React app accessible
+      sandbox.process.exec(
+          "sh", "-c",
+          "cd /app && npm run dev -- --host :: --port 3000"
+      )
+
+      return {
+          "url": url,  # https://xyz.beam.cloud
+          "sandbox_id": sandbox.sandbox_id(),
+      }
+
+  Step 3.2: Load Existing Code (if any)
+
+  # src/tools.py - load_code tool
+  @mcp.tool
+  def load_code(sandbox_id: str) -> tuple[dict, str]:
+      sandbox = Sandbox().connect(sandbox_id)
+
+      file_map = {}
+      def _process_directory(dir_path: str):
+          for file in sandbox.fs.list_files(dir_path):
+              if file.is_dir:
+                  _process_directory(str(full_path))
+              else:
+                  # Download and read file content
+                  file_content = download_file_content(full_path)
+                  file_map[str(full_path)] = file_content
+
+      _process_directory("/app/src")
+      return file_map, package_json
+
+  Interview Point: "MCP (Model Context Protocol) provides a standardized way for AI models to call 
+  external tools. It's like giving the AI 'hands' to interact with the real world safely."
+
+  ---
+  PHASE 4: AI Model Processing with BAML
+
+  Step 4.1: Prepare BAML Request
+
+  # src/agent.py - send_feedback method
+  async def send_feedback(self, feedback: str):
+      # Load current codebase
+      code_map, package_json = await self.load_code(self.init_data["sandbox_id"])
+
+      code_files = []
+      for path, content in code_map.items():
+          code_files.append({"path": path, "content": content})
+
+      history = self.get_history()
+
+      # Call BAML with structured prompt
+      stream = self.model_client.stream.EditCode(
+          history,           # Conversation context
+          feedback,          # "Create a todo app with dark mode"
+          code_files,        # Current React app files
+          package_json       # Dependencies
+      )
+
+  Step 4.2: BAML Processes Request
+
+  # baml_src/build.baml - The BAML function definition
+  function EditCode(
+    history: ConvoMessage[],
+    user_request: string,
+    code_files: CodeFile[],
+    package_json: string
+  ) -> CodeChanges {
+    client GPT4o
+    prompt #"
+      You are an expert React developer building with Vite + TypeScript + shadcn/ui.
+
+      CONVERSATION HISTORY:
+      {{ history }}
+
+      CURRENT USER REQUEST:
+      {{ user_request }}
+
+      CURRENT CODEBASE:
+      {{ code_files }}
+
+      PACKAGE.JSON:
+      {{ package_json }}
+
+      TASK: Generate a plan and code changes to fulfill the user's request.
+
+      Return your response in this EXACT format:
+      - plan: Step-by-step plan of what you'll build
+      - files: Array of file changes with path and complete content
+    "#
+  }
+
+  Step 4.3: OpenAI API Call
+
+  BAML → HTTP POST to OpenAI API
+  {
+    "model": "gpt-4o",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are an expert React developer..."
+      },
+      {
+        "role": "user",
+        "content": "Create a todo app with dark mode\nCurrent files: [...]"
+      }
+    ],
+    "stream": true
+  }
+
+  Interview Point: "BAML provides type-safe AI integration. Instead of raw string prompts, we define 
+  structured functions with typed inputs and outputs. This ensures consistent, reliable AI responses."
+
+  ---
+  PHASE 5: Real-time Response Streaming
+
+  Step 5.1: Stream Processing
+
+  # src/agent.py - Process streaming response
+  new_code_map = {}
+  plan_msg_id = str(uuid.uuid4())
+
+  for partial in stream:  # BAML streams response in chunks
+      # Stream plan to frontend
+      if partial.plan.state != "Complete":
+          yield Message.new(
+              MessageType.AGENT_PARTIAL,
+              {"text": partial.plan.value},
+              id=plan_msg_id,
+          ).to_dict()
+
+      # Process file changes
+      for file in partial.files:
+          if file.path not in new_code_map:
+              yield Message.new(
+                  MessageType.UPDATE_FILE,
+                  {"text": f"Working on {file.path}"},
+              ).to_dict()
+
+              new_code_map[file.path] = file.content
+
+  Step 5.2: Apply Code Changes
+
+  # Apply changes to sandbox
+  await self.edit_code(self.init_data["sandbox_id"], new_code_map)
+
+  # Notify completion
+  yield Message.new(MessageType.UPDATE_COMPLETED, {}).to_dict()
+
+  ---
+  PHASE 6: Sandbox Code Execution
+
+  Step 6.1: File System Operations
+
+  # src/tools.py - edit_code tool
+  @mcp.tool
+  def edit_code(sandbox_id: str, code_map: dict) -> dict:
+      sandbox = Sandbox().connect(sandbox_id)
+
+      for sandbox_path, content in code_map.items():
+          # Write new file content
+          with tempfile.NamedTemporaryFile() as temp_file:
+              temp_file.write(content.encode("utf-8"))
+              temp_file.seek(0)
+
+              # Ensure parent directory exists
+              parent_dir = str(Path(sandbox_path).parent)
+              sandbox.process.exec("mkdir", "-p", parent_dir).wait()
+
+              # Upload file to sandbox
+              sandbox.fs.upload_file(temp_file.name, sandbox_path)
+
+      return {"sandbox_id": sandbox.sandbox_id()}
+
+  Step 6.2: Live React App Update
+
+  # Inside the sandbox container:
+  # Vite detects file changes automatically
+  # React app rebuilds and updates in real-time
+  # Available at: https://xyz.beam.cloud:3000
+
+  Interview Point: "The sandbox provides complete isolation. Each user gets their own containerized 
+  environment with Node.js, so generated code runs safely without affecting other users or the main 
+  system."
+
+  ---
+  PHASE 7: Frontend UI Updates
+
+  Step 7.1: WebSocket Message Handling
+
+  // frontend/src/services/websocketBus.ts
+  handleIncomingMessage(message: any) {
+    switch (message.type) {
+      case 'AGENT_PARTIAL':
+        this.updatePartialResponse(message.data.text, message.id);
+        break;
+      case 'UPDATE_FILE':
+        this.showFileProgress(message.data.text);
+        break;
+      case 'UPDATE_COMPLETED':
+        this.showPreviewLink(this.sandboxUrl);
+        break;
+    }
+  }
+
+  Step 7.2: Real-time UI Updates
+
+  // React component updates in real-time
+  const [messages, setMessages] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    websocket.onMessage((message) => {
+      if (message.type === 'AGENT_PARTIAL') {
+        // Show streaming AI response
+        setMessages(prev => updateMessage(prev, message));
+      }
+    });
+  }, []);
+
+  ---
+  🎯 Key Interview Points to Emphasize
+
+  1. Real-time Architecture
+
+  "The system uses WebSocket for real-time communication, allowing users to see AI responses as they're 
+  generated, rather than waiting for a complete response."
+
+  2. Type Safety
+
+  "BAML ensures type-safe AI integration. We define structured prompts with typed inputs and outputs, 
+  making the system more reliable than raw string prompts."
+
+  3. Security & Isolation
+
+  "Each user gets an isolated sandbox environment. Generated code runs in containers, preventing 
+  malicious code from affecting the main system."
+
+  4. Scalable Architecture
+
+  "Each component can scale independently. The Agent handles orchestration, MCP manages tools, and Beam 
+  provides the cloud infrastructure."
+
+  5. Modern Protocols
+
+  "We use WebSocket for real-time communication, SSE for tool responses, and MCP as a standardized 
+  protocol for AI-tool interaction."
+
+  This flow demonstrates a production-ready AI system with proper separation of concerns, type safety,
+  and real-time capabilities! 🚀
+
+  Based on my analysis of your Lovable clone project, here's how the right panel preview works:
+
+  🔍 Project Analysis
+
+  Your Lovable clone is a sophisticated AI-powered code generation platform with real-time preview
+  capabilities. The right panel you see is not a traditional sandbox - it's a live React application
+  running in the cloud.
+
+  🎯 How the Right Panel Preview Works
+
+  1. Cloud-Based Sandbox Architecture
+
+  - Technology: Beam Cloud containerized sandboxes
+  - Runtime: Node.js 20 + React + Vite + shadcn/ui pre-installed
+  - Location: Each user gets an isolated Docker container in the cloud
+  - URL: Generated dynamically (e.g., https://xyz.beam.cloud:3000)
+
+  2. Preview Panel Implementation (frontend/src/screens/Create/index.tsx:640-720)
+
+  <WebsiteIframe
+    ref={iframeRef}
+    src={iframeUrl}  // Dynamic URL from sandbox
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+    allow="fullscreen"
+    onLoad={handleIframeLoad}
+    onError={handleIframeError}
+  />
+
+  3. The Flow - How Code Becomes Live Preview
+
+  Step 1: Sandbox Creation (src/tools.py:27-50)
+  @mcp.tool
+  def create_app_environment() -> dict:
+      sandbox = Sandbox(
+          name="lovable-clone",
+          cpu=1, memory=1024,
+          image=image,  # Pre-configured Node.js + React
+          keep_warm_seconds=300,
+      ).create()
+
+      url = sandbox.expose_port(3000)  # Expose React dev server
+      sandbox.process.exec("npm run dev -- --host :: --port 3000")
+
+      return {"url": url, "sandbox_id": sandbox.sandbox_id()}
+
+  Step 2: Real-time Code Updates (src/tools.py:88-111)
+  @mcp.tool 
+  def edit_code(sandbox_id: str, code_map: dict) -> dict:
+      sandbox = Sandbox().connect(sandbox_id)
+
+      for sandbox_path, content in code_map.items():
+          # Upload new code files to the running container
+          sandbox.fs.upload_file(temp_file.name, sandbox_path)
+
+  Step 3: Vite Hot Reload
+  - Vite dev server detects file changes automatically
+  - React app rebuilds and refreshes instantly
+  - Changes appear in the iframe immediately
+
+  4. Why You Can't See Generated Code
+
+  The generated code does exist - it's just running in the cloud sandbox, not locally. Here's where
+  it lives:
+
+  - Physical Location: Beam Cloud containers (/app/src/ directory)
+  - Access Method: Through MCP tools (load_code, edit_code)
+  - File System: Isolated container filesystem, not your local machine
+
+  5. Device Simulation (frontend/src/screens/Create/index.tsx:22-26)
+
+  const DEVICE_SPECS = {
+    mobile: { width: 390, height: 844 },
+    tablet: { width: 768, height: 1024 },
+    desktop: { width: "100%", height: "100%" },
+  };
+
+  The responsive preview isn't emulation - it's CSS sizing of the actual iframe.
+
+  🏗️ Architecture Summary
+
+  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+  │   Your Browser  │    │   Beam Cloud     │    │  React Sandbox  │
+  │   (Frontend)    │◄──►│   (Agent/MCP)    │◄──►│  (Live App)     │
+  │                 │    │                  │    │                 │
+  │ • Chat with AI  │    │ • Code Generation│    │ • Vite Dev      │
+  │ • View Preview  │    │ • File Management│    │ • Hot Reload    │
+  │ • iframe panel  │    │ • Orchestration  │    │ • Port 3000     │
+  └─────────────────┘    └──────────────────┘    └─────────────────┘
+
+  The "right panel" is essentially a live website preview running in a cloud container, updated in
+  real-time as the AI generates and modifies code files through the MCP (Model Context Protocol)
+  tools.
