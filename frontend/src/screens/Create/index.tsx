@@ -17,10 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Message } from "../../types/messages";
 import styled from "styled-components";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMessageBus } from "../../hooks/useMessageBus";
 import CodeViewer from "../../components/CodeViewer";
-import ThemeToggle from "@/components/theme-toggle";
 import LovableIcon from "@/components/lovable-icon";
 
 const DEVICE_SPECS = {
@@ -46,6 +45,7 @@ const Create = () => {
   const hasConnectedRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
   const location = useLocation();
+  const navigate = useNavigate();
   const initialPromptSent = useRef(false);
   const [selectedDevice, setSelectedDevice] = useState<
     "mobile" | "tablet" | "desktop"
@@ -62,9 +62,6 @@ const Create = () => {
     }
   }, [location.state]);
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   // Auto-resize textarea
   const adjustTextareaHeight = () => {
@@ -596,13 +593,12 @@ const Create = () => {
     <PageContainer isDark={isDarkMode}>
       <Sidebar isDark={isDarkMode} style={{ width: `${sidebarWidth}px` }}>
         <BeamHeader>
-          <Logo>
+          <Logo onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
             <LogoIcon>
               <LovableIcon size={14} />
             </LogoIcon>
             <LogoText isDark={isDarkMode}>AuraCode</LogoText>
           </Logo>
-          <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
         </BeamHeader>
 
         <ChatHistory ref={chatHistoryRef}>
@@ -677,6 +673,27 @@ const Create = () => {
         {isConnected ? (
           <IframeContainer>
             <UrlBarContainer isDark={isDarkMode}>
+              <CodeToggleButton
+                isDark={isDarkMode}
+                disabled={
+                  !iframeUrl ||
+                  !iframeReady ||
+                  isUpdateInProgress ||
+                  !initCompleted
+                }
+                onClick={() => {
+                  const newViewMode = viewMode === "preview" ? "code" : "preview";
+                  setViewMode(newViewMode);
+                  if (newViewMode === "code" && sandboxId && Object.keys(codeFiles).length === 0) {
+                    fetchCodeFiles(sandboxId);
+                  }
+                }}
+                title={viewMode === "preview" ? "View Code" : "View Preview"}
+              >
+                <svg width="20" height="20" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="currentColor" d="M9.81175,1.23848 C10.3070964,1.37121929 10.6154651,1.85349541 10.5425767,2.3488407 L10.5189,2.46323 L7.41303,14.0543 C7.27009,14.5878 6.72175,14.9044 6.18828,14.7614 C5.69292429,14.6287071 5.38457224,14.1464602 5.45749504,13.6510948 L5.48118,13.5367 L8.58701,1.94559 C8.72995,1.41213 9.27829,1.09554 9.81175,1.23848 Z M4.70711,4.29288 C5.09763,4.68341 5.09763,5.31657 4.70711,5.7071 L2.41421,7.99999 L4.70711,10.2929 C5.09763,10.6834 5.09763,11.3166 4.70711,11.7071 C4.31658,12.0976 3.68342,12.0976 3.29289,11.7071 L0.292893,8.7071 C-0.0976311,8.31657 -0.0976311,7.68341 0.292893,7.29288 L3.29289,4.29288 C3.68342,3.90236 4.31658,3.90236 4.70711,4.29288 Z M11.2929,4.29288 C11.6533615,3.9324 12.2206207,3.90467077 12.6128973,4.20969231 L12.7071,4.29288 L15.7071,7.29288 C16.0675615,7.65336923 16.0952893,8.22059645 15.7902834,8.61289152 L15.7071,8.7071 L12.7071,11.7071 C12.3166,12.0976 11.6834,12.0976 11.2929,11.7071 C10.9324385,11.3466385 10.9047107,10.7793793 11.2097166,10.3871027 L11.2929,10.2929 L13.5858,7.99999 L11.2929,5.7071 C10.9024,5.31657 10.9024,4.68341 11.2929,4.29288 Z"/>
+                </svg>
+              </CodeToggleButton>
               <IconButton
                 isDark={isDarkMode}
                 style={{ cursor: iframeUrl ? "pointer" : "not-allowed" }}
@@ -685,20 +702,58 @@ const Create = () => {
               >
                 <RotateCcw size={16} />
               </IconButton>
+              <DeviceGroup>
+                <DeviceButton
+                  active={selectedDevice === "mobile"}
+                  isDark={isDarkMode}
+                  disabled={
+                    !iframeUrl ||
+                    !iframeReady ||
+                    isUpdateInProgress ||
+                    !initCompleted
+                  }
+                  onClick={() => setSelectedDevice("mobile")}
+                >
+                  <PhoneIcon />
+                </DeviceButton>
+                <DeviceButton
+                  active={selectedDevice === "tablet"}
+                  isDark={isDarkMode}
+                  disabled={
+                    !iframeUrl ||
+                    !iframeReady ||
+                    isUpdateInProgress ||
+                    !initCompleted
+                  }
+                  onClick={() => setSelectedDevice("tablet")}
+                >
+                  <TabletIcon />
+                </DeviceButton>
+                <DeviceButton
+                  active={selectedDevice === "desktop"}
+                  isDark={isDarkMode}
+                  disabled={
+                    !iframeUrl ||
+                    !iframeReady ||
+                    isUpdateInProgress ||
+                    !initCompleted
+                  }
+                  onClick={() => setSelectedDevice("desktop")}
+                >
+                  <ComputerIcon />
+                </DeviceButton>
+              </DeviceGroup>
               <UrlInput isDark={isDarkMode} value={iframeUrl || ""} readOnly />
-              <a
+              <ExternalLinkButton
                 href={iframeUrl || undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  pointerEvents: iframeUrl ? "auto" : "none",
-                }}
+                isDark={isDarkMode}
+                disabled={!iframeUrl}
                 tabIndex={iframeUrl ? 0 : -1}
               >
                 <ExternalLink size={16} />
-              </a>
+              </ExternalLinkButton>
             </UrlBarContainer>
             <IframeArea>
               {viewMode === "code" ? (
@@ -808,83 +863,6 @@ const Create = () => {
                 </IframeResponsiveWrapper>
               )}
             </IframeArea>
-            <BottomBar isDark={isDarkMode}>
-              <ToggleGroup>
-                <CodeToggleButton
-                  isDark={isDarkMode}
-                  disabled={
-                    !iframeUrl ||
-                    !iframeReady ||
-                    isUpdateInProgress ||
-                    !initCompleted
-                  }
-                  onClick={() => {
-                    const newViewMode = viewMode === "preview" ? "code" : "preview";
-                    setViewMode(newViewMode);
-                    if (newViewMode === "code" && sandboxId && Object.keys(codeFiles).length === 0) {
-                      fetchCodeFiles(sandboxId);
-                    }
-                  }}
-                  title={viewMode === "preview" ? "View Code" : "View Preview"}
-                >
-                  <svg width="20" height="20" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="currentColor" d="M9.81175,1.23848 C10.3070964,1.37121929 10.6154651,1.85349541 10.5425767,2.3488407 L10.5189,2.46323 L7.41303,14.0543 C7.27009,14.5878 6.72175,14.9044 6.18828,14.7614 C5.69292429,14.6287071 5.38457224,14.1464602 5.45749504,13.6510948 L5.48118,13.5367 L8.58701,1.94559 C8.72995,1.41213 9.27829,1.09554 9.81175,1.23848 Z M4.70711,4.29288 C5.09763,4.68341 5.09763,5.31657 4.70711,5.7071 L2.41421,7.99999 L4.70711,10.2929 C5.09763,10.6834 5.09763,11.3166 4.70711,11.7071 C4.31658,12.0976 3.68342,12.0976 3.29289,11.7071 L0.292893,8.7071 C-0.0976311,8.31657 -0.0976311,7.68341 0.292893,7.29288 L3.29289,4.29288 C3.68342,3.90236 4.31658,3.90236 4.70711,4.29288 Z M11.2929,4.29288 C11.6533615,3.9324 12.2206207,3.90467077 12.6128973,4.20969231 L12.7071,4.29288 L15.7071,7.29288 C16.0675615,7.65336923 16.0952893,8.22059645 15.7902834,8.61289152 L15.7071,8.7071 L12.7071,11.7071 C12.3166,12.0976 11.6834,12.0976 11.2929,11.7071 C10.9324385,11.3466385 10.9047107,10.7793793 11.2097166,10.3871027 L11.2929,10.2929 L13.5858,7.99999 L11.2929,5.7071 C10.9024,5.31657 10.9024,4.68341 11.2929,4.29288 Z"/>
-                  </svg>
-                </CodeToggleButton>
-              </ToggleGroup>
-              <DeviceGroup>
-                <DeviceButton
-                  active={selectedDevice === "mobile"}
-                  isDark={isDarkMode}
-                  disabled={
-                    !iframeUrl ||
-                    !iframeReady ||
-                    isUpdateInProgress ||
-                    !initCompleted
-                  }
-                  onClick={() => setSelectedDevice("mobile")}
-                >
-                  <PhoneIcon />
-                </DeviceButton>
-                <DeviceButton
-                  active={selectedDevice === "tablet"}
-                  isDark={isDarkMode}
-                  disabled={
-                    !iframeUrl ||
-                    !iframeReady ||
-                    isUpdateInProgress ||
-                    !initCompleted
-                  }
-                  onClick={() => setSelectedDevice("tablet")}
-                >
-                  <TabletIcon />
-                </DeviceButton>
-                <DeviceButton
-                  active={selectedDevice === "desktop"}
-                  isDark={isDarkMode}
-                  disabled={
-                    !iframeUrl ||
-                    !iframeReady ||
-                    isUpdateInProgress ||
-                    !initCompleted
-                  }
-                  onClick={() => setSelectedDevice("desktop")}
-                >
-                  <ComputerIcon />
-                </DeviceButton>
-              </DeviceGroup>
-              <DeployButton
-                isDark={isDarkMode}
-                disabled={
-                  !iframeUrl ||
-                  !iframeReady ||
-                  isUpdateInProgress ||
-                  !initCompleted
-                }
-              >
-                Deploy
-              </DeployButton>
-            </BottomBar>
           </IframeContainer>
         ) : (
           <>
@@ -1261,7 +1239,7 @@ const IframeContainer = styled.div`
 const IframeArea = styled.div`
   position: relative;
   width: 100%;
-  height: calc(100% - 44px - 40px); /* subtract bottom bar and url bar height */
+  height: calc(100% - 44px); /* subtract url bar height */
   min-height: 0;
   padding: 0;
   margin: 0;
@@ -1330,19 +1308,48 @@ const SpinningIcon = styled.div`
 `;
 
 const IconButton = styled.button<{ isDark?: boolean }>`
-  background: none;
-  border: none;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.8)' : '#1a1a1a'};
+    background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+  color: ${({ disabled, isDark }) =>
+    disabled 
+      ? (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)')
+      : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)')
+  };
+  border: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'};
+  border-radius: 6px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
+  transition: all 0.15s ease;
+  text-decoration: none;
+  pointer-events: ${({ disabled }) => (disabled ? "none" : "auto")};
+  
+  &:hover:not([disabled]) {
+    background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'};
+  }
+`;
 
-  &:hover {
-    background-color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+const ExternalLinkButton = styled.a<{ isDark?: boolean; disabled?: boolean }>`
+  background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+  color: ${({ disabled, isDark }) =>
+    disabled 
+      ? (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)')
+      : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)')
+  };
+  border: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'};
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
+  transition: all 0.15s ease;
+  text-decoration: none;
+  pointer-events: ${({ disabled }) => (disabled ? "none" : "auto")};
+  
+  &:hover:not([disabled]) {
+    background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'};
   }
 `;
 
@@ -1416,7 +1423,7 @@ const BottomBar = styled.div<{ isDark: boolean }>`
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   background: ${({ isDark }) => isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)'};
   border-top: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'};
   padding: 0 24px;
