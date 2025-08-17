@@ -105,9 +105,9 @@ const LogoIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #7c3aed, #3b82f6);
-  border-radius: 8px;
-  padding: 6px;
+  background-color: #7c3aed;
+  border-radius: 12px;
+  padding: 8px; 
 `
 
 const LogoText = styled.h1`

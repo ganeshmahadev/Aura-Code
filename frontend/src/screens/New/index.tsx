@@ -23,17 +23,7 @@ const NewScreen: React.FC = () => {
   };
 
   return (
-    <Outer isDark={isDarkMode}>
-      <Header>
-        <Logo>
-          <LogoIcon>
-            <LovableIcon size={24} />
-          </LogoIcon>
-          <LogoText>AuraCode</LogoText>
-        </Logo>
-        <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
-      </Header>
-      
+    <Outer isDark={isDarkMode}> 
       <MainContent>
         <TitleSection>
           <MainTitle>
