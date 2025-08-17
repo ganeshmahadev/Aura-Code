@@ -18,7 +18,9 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ isDark, onToggle }) => {
 
 export default ThemeToggle;
 
-const ToggleButton = styled.button<{ isDark: boolean }>`
+const ToggleButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isDark',
+})<{ isDark: boolean }>`
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
@@ -41,7 +43,9 @@ const ToggleButton = styled.button<{ isDark: boolean }>`
   }
 `;
 
-const IconWrapper = styled.div<{ isDark: boolean }>`
+const IconWrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isDark',
+})<{ isDark: boolean }>`
   font-size: 18px;
   transition: transform 0.3s ease;
   transform: rotate(${props => props.isDark ? '180deg' : '0deg'});

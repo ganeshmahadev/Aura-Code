@@ -21,6 +21,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMessageBus } from "../../hooks/useMessageBus";
 import CodeViewer from "../../components/CodeViewer";
 import LovableIcon from "@/components/lovable-icon";
+import { useAuth } from "../../contexts/AuthContext";
+import { createSession, updateSession, getSession } from "../../lib/sessions";
+import type { Session } from "../../lib/supabase";
 
 const DEVICE_SPECS = {
   mobile: { width: 390, height: 844 },
@@ -54,6 +57,8 @@ const Create = () => {
   const [codeFiles, setCodeFiles] = useState<Record<string, string>>({});
   const [sandboxId, setSandboxId] = useState<string>("");
   const sandboxIdRef = useRef<string>("");
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const { user } = useAuth();
 
   // Initialize theme from navigation state
   useEffect(() => {
@@ -61,6 +66,43 @@ const Create = () => {
       setIsDarkMode(location.state.isDarkMode);
     }
   }, [location.state]);
+
+  // Initialize or load session
+  useEffect(() => {
+    const initializeSession = async () => {
+      if (!user) return;
+
+      const sessionId = location.state?.sessionId;
+      
+      if (sessionId) {
+        // Load existing session
+        try {
+          const session = await getSession(sessionId);
+          setCurrentSession(session);
+          if (session.sandbox_id) {
+            setSandboxId(session.sandbox_id);
+            sandboxIdRef.current = session.sandbox_id;
+          }
+          if (session.iframe_url) {
+            setIframeUrl(session.iframe_url);
+          }
+        } catch (error) {
+          console.error('Error loading session:', error);
+        }
+      } else {
+        // Create new session
+        const title = location.state?.initialPrompt || "New Project";
+        try {
+          const session = await createSession(title, "Created with AuraCode");
+          setCurrentSession(session);
+        } catch (error) {
+          console.error('Error creating session:', error);
+        }
+      }
+    };
+
+    initializeSession();
+  }, [user, location.state]);
 
 
   // Auto-resize textarea
@@ -128,6 +170,15 @@ const Create = () => {
         setIframeError(false);
         // Fetch initial code files
         fetchCodeFiles(message.data.sandbox_id);
+        
+        // Update session with sandbox and URL info
+        if (currentSession && user) {
+          updateSession(currentSession.id, {
+            sandbox_id: message.data.sandbox_id,
+            iframe_url: message.data.url,
+            is_active: true
+          }).catch(error => console.error('Error updating session:', error));
+        }
       }
 
       setMessages((prev) => {
@@ -479,6 +530,15 @@ const Create = () => {
   const handleSendMessage = () => {
     if (inputValue.trim()) {
       send(MessageType.USER, { text: inputValue });
+      
+      // Update session title if this is the first message and it's a new session
+      if (currentSession && messages.length === 0 && user) {
+        const title = inputValue.length > 50 ? inputValue.substring(0, 50) + "..." : inputValue;
+        updateSession(currentSession.id, { title }).catch(error => 
+          console.error('Error updating session title:', error)
+        );
+      }
+      
       setInputValue("");
       setMessages((prev) => [
         ...prev,

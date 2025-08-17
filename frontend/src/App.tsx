@@ -1,22 +1,111 @@
 import "./App.css";
 
 import { Route, Routes } from "react-router-dom";
-
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { LoginPage } from "./screens/Auth/LoginPage";
+import { SignupPage } from "./screens/Auth/SignupPage";
 import CreateRoute from "./screens/Create";
 import NewScreen from "./screens/New";
+import { SessionsGrid } from "./components/SessionsGrid";
+import { Header } from "./components/Header";
 import styled from "styled-components";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
+
+const HomePage: React.FC = () => {
+  const { user, loading } = useAuth();
+  const [input, setInput] = useState("");
+  const navigate = useNavigate();
+  
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontSize: '18px'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  const handleStartBuilding = () => {
+    if (input.trim()) {
+      navigate("/create", { state: { initialPrompt: input, isDarkMode: true } });
+    }
+  };
+  
+  if (user) {
+    return (
+      <HomePageContainer>
+        <Header />
+        <HomeContent>
+          <WelcomeSection>
+            <WelcomeTitle>
+              Welcome back, {user.email?.split('@')[0] || 'User'}!
+            </WelcomeTitle>
+            <WelcomeSubtitle>
+              What would you like to build today?
+            </WelcomeSubtitle>
+          </WelcomeSection>
+          
+          <ChatInputSection>
+            <ChatInputWrapper>
+              <StyledTextarea
+                placeholder="Ask AuraCode to create something amazing..."
+                value={input}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setInput(e.target.value)
+                }
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleStartBuilding();
+                  }
+                }}
+              />
+              <ChatArrowButton onClick={handleStartBuilding}>
+                <ArrowIcon>↑</ArrowIcon>
+              </ChatArrowButton>
+            </ChatInputWrapper>
+          </ChatInputSection>
+          
+          <WorkspaceSection>
+            <SessionsGrid isDark={true} isHomepage={true} />
+          </WorkspaceSection>
+        </HomeContent>
+      </HomePageContainer>
+    );
+  }
+  
+  return (
+    <div>
+      <Header />
+      <NewScreen />;
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   return (
-    <Container className="dark bg-background">
-      {/* <Header /> */}
-      <ContentContainer>
-        <Routes>
-          <Route path="/" element={<NewScreen />} />
-          <Route path="/create" element={<CreateRoute />} />
-        </Routes>
-      </ContentContainer>
-    </Container>
+    <AuthProvider>
+      <Container className="dark bg-background">
+        <ContentContainer>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/new" element={<ProtectedRoute><NewScreen /></ProtectedRoute>} />
+            <Route path="/create" element={<ProtectedRoute><CreateRoute /></ProtectedRoute>} />
+          </Routes>
+        </ContentContainer>
+      </Container>
+    </AuthProvider>
   );
 };
 
@@ -30,10 +119,172 @@ const Container = styled.div`
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #7209b7 100%);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+    pointer-events: none;
+  }
 `;
 
 const ContentContainer = styled.div`
   width: 100%;
   flex-grow: 1;
   overflow: auto;
+  position: relative;
+  z-index: 1;
+`;
+
+const HomePageContainer = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #7209b7 100%);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+    pointer-events: none;
+  }
+`;
+
+const HomeContent = styled.div`
+  padding-top: 80px;
+  min-height: calc(100vh - 80px);
+  position: relative;
+  z-index: 1;
+`;
+
+const WelcomeSection = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+`;
+
+const WelcomeTitle = styled.h1`
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 16px 0;
+  font-family: 'Montserrat', sans-serif;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
+`;
+
+const WelcomeSubtitle = styled.p`
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
+const ChatInputSection = styled.div`
+  display: flex;
+  justify-content: center;
+  padding: 0 20px 60px 20px;
+`;
+
+const ChatInputWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+`;
+
+const StyledTextarea = styled(Textarea)`
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  padding: 0 60px 0 20px;
+  resize: none;
+  min-height: 60px;
+  max-height: 144px;
+  overflow-y: auto;
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 400;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 3px;
+  }
+`;
+
+const ChatArrowButton = styled.button`
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+  }
+`;
+
+const ArrowIcon = styled.span`
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  font-family: 'Montserrat', sans-serif;
+`;
+
+const WorkspaceSection = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 40px 20px;
 `;

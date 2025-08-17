@@ -71,7 +71,9 @@ const NewScreen: React.FC = () => {
 
 export default NewScreen;
 
-const Outer = styled.div<{ isDark: boolean }>`
+const Outer = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isDark',
+})<{ isDark: boolean }>`
   min-height: 100vh;
   width: 100vw;
   background: ${props => props.isDark 
@@ -192,7 +194,9 @@ const InputContainer = styled.div`
   max-width: 600px;
 `;
 
-const InputWrapper = styled.div<{ isDark: boolean }>`
+const InputWrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isDark',
+})<{ isDark: boolean }>`
   position: relative;
   background: ${props => props.isDark 
     ? 'rgba(0, 0, 0, 0.3)' 
@@ -266,7 +270,9 @@ const PaperclipIcon = styled.div`
   z-index: 2;
 `;
 
-const ArrowButton = styled.button<{ isDark: boolean }>`
+const ArrowButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isDark',
+})<{ isDark: boolean }>`
   position: absolute;
   right: 20px;
   bottom: 20px;
