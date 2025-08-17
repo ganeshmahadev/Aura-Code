@@ -39,7 +39,7 @@ export const LoginPage: React.FC = () => {
       <AuthFormContainer>
         <LogoSection>
           <LogoIcon>
-            <LovableIcon size={32} />
+            <LovableIcon size={36} />
           </LogoIcon>
         </LogoSection>
 
@@ -158,9 +158,7 @@ const LogoIcon = styled.div`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #7c3aed, #3b82f6);
   border-radius: 12px;
-  padding: 12px;
 `
 
 const AuthForm = styled.form`

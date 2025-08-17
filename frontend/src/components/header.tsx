@@ -5,6 +5,7 @@ import { ChevronDown, LogOut, User } from 'lucide-react'
 import styled from 'styled-components'
 import LovableIcon from './lovable-icon'
 
+
 export const Header: React.FC = () => {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -79,9 +80,7 @@ const HeaderContainer = styled.header`
   left: 0;
   right: 0;
   height: 64px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -99,15 +98,6 @@ const LogoSection = styled.div`
   &:hover {
     opacity: 0.8;
   }
-`
-
-const LogoIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #7c3aed;
-  border-radius: 12px;
-  padding: 8px; 
 `
 
 const LogoText = styled.h1`
@@ -134,7 +124,7 @@ const LoginButton = styled.button`
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
@@ -244,4 +234,9 @@ const DropdownItem = styled.button`
   &:hover {
     background: rgba(255, 255, 255, 0.1);
   }
+`
+const LogoIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `

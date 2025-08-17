@@ -56,7 +56,7 @@ export const SignupPage: React.FC = () => {
       <AuthFormContainer>
         <LogoSection>
           <LogoIcon>
-            <LovableIcon size={32} />
+            <LovableIcon size={36} />
           </LogoIcon>
         </LogoSection>
 
@@ -68,10 +68,6 @@ export const SignupPage: React.FC = () => {
               <GoogleIcon>G</GoogleIcon>
               Continue with Google
               <LastUsedBadge>Last used</LastUsedBadge>
-            </SocialButton>
-            <SocialButton>
-              <GithubIcon>⚡</GithubIcon>
-              Continue with GitHub
             </SocialButton>
           </SocialButtons>
 
@@ -185,9 +181,7 @@ const LogoIcon = styled.div`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #7c3aed, #3b82f6);
   border-radius: 12px;
-  padding: 12px;
 `
 
 const AuthForm = styled.form`
@@ -244,15 +238,6 @@ const GoogleIcon = styled.div`
   font-size: 12px;
 `
 
-const GithubIcon = styled.div`
-  width: 20px;
-  height: 20px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-`
 
 const LastUsedBadge = styled.span`
   position: absolute;

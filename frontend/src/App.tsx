@@ -8,7 +8,7 @@ import { SignupPage } from "./screens/Auth/SignupPage";
 import CreateRoute from "./screens/Create";
 import NewScreen from "./screens/New";
 import { SessionsGrid } from "./components/SessionsGrid";
-import { Header } from "./components/Header";
+import { Header } from "./components/header";
 import styled from "styled-components";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -45,14 +45,14 @@ const HomePage: React.FC = () => {
       <HomePageContainer>
         <Header />
         <HomeContent>
-          <WelcomeSection>
-            <WelcomeTitle>
-              Welcome back, {user.email?.split('@')[0] || 'User'}!
-            </WelcomeTitle>
-            <WelcomeSubtitle>
-              What would you like to build today?
-            </WelcomeSubtitle>
-          </WelcomeSection>
+          <TitleSection>
+            <MainTitle>
+              Build something
+            </MainTitle>
+            <Subtitle>
+              Create apps and websites by chatting with AI
+            </Subtitle>
+          </TitleSection>
           
           <ChatInputSection>
             <ChatInputWrapper>
@@ -76,7 +76,7 @@ const HomePage: React.FC = () => {
           </ChatInputSection>
           
           <WorkspaceSection>
-            <SessionsGrid isDark={true} isHomepage={true} />
+            <SessionsGrid isHomepage={true} />
           </WorkspaceSection>
         </HomeContent>
       </HomePageContainer>
@@ -168,33 +168,38 @@ const HomeContent = styled.div`
   z-index: 1;
 `;
 
-const WelcomeSection = styled.div`
+const TitleSection = styled.div`
   text-align: center;
   padding: 40px 20px;
   max-width: 800px;
   margin: 0 auto;
 `;
 
-const WelcomeTitle = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: white;
-  margin: 0 0 16px 0;
+const MainTitle = styled.h1`
+  font-size: 3.2rem;
+  font-weight: 800;
   font-family: 'Montserrat', sans-serif;
+  color: white;
+  margin: 0 0 20px 0;
+  line-height: 1.1;
+  letter-spacing: -1px;
   
   @media (max-width: 768px) {
     font-size: 2rem;
+    letter-spacing: -0.5px;
   }
 `;
 
-const WelcomeSubtitle = styled.p`
-  font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0;
+const Subtitle = styled.p`
+  font-size: 1.5rem;
+  font-weight: 400;
   font-family: 'Montserrat', sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  letter-spacing: -0.2px;
   
   @media (max-width: 768px) {
-    font-size: 1rem;
+    font-size: 1.2rem;
   }
 `;
 

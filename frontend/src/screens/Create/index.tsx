@@ -12,8 +12,7 @@ import { MessageType, Sender } from "../../types/messages";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BEAM_CONFIG } from "../../config/beam";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Textarea } from "@/components/ui/textarea";
 import type { Message } from "../../types/messages";
 import styled from "styled-components";
@@ -1479,27 +1478,6 @@ const UrlInput = styled.input<{ isDark: boolean }>`
   }
 `;
 
-const BottomBar = styled.div<{ isDark: boolean }>`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: ${({ isDark }) => isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.2)'};
-  border-top: 1px solid ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'};
-  padding: 0 24px;
-  height: 43px;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  backdrop-filter: blur(20px);
-`;
-
-const ToggleGroup = styled.div`
-  display: flex;
-  gap: 8px;
-`;
 
 const CodeToggleButton = styled.button<{ isDark?: boolean }>`
   background: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
@@ -1561,20 +1539,4 @@ const DeviceButton = styled.button<{ active?: boolean; isDark?: boolean }>`
   }
 `;
 
-const DeployButton = styled.button<{ isDark?: boolean }>`
-  background: #7c3aed;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 28px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
-  transition: all 0.15s ease;
-  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
-  
-  &:hover:not(:disabled) {
-    background: #6d28d9;
-    transform: translateY(-1px);
-  }
-`;
+

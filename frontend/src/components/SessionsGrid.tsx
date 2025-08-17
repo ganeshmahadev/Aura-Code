@@ -8,11 +8,10 @@ import { useAuth } from '../contexts/AuthContext'
 import styled from 'styled-components'
 
 interface SessionsGridProps {
-  isDark?: boolean
   isHomepage?: boolean
 }
 
-export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHomepage = false }) => {
+export const SessionsGrid: React.FC<SessionsGridProps> = ({ isHomepage = false }) => {
   const [sessions, setSessions] = useState<Session[]>([])
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,7 +65,7 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
     navigate('/create', { 
       state: { 
         sessionId: session.id,
-        isDarkMode: isDark,
+        isDarkMode: true,
         initialPrompt: `Continue working on: ${session.title}`
       }
     })
@@ -93,29 +92,29 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
   }
 
   if (loading) {
-    return <LoadingContainer isDark={isDark}>Loading your workspace...</LoadingContainer>
+    return <LoadingContainer>Loading your workspace...</LoadingContainer>
   }
 
   return (
-    <WorkspaceContainer isDark={isDark} isHomepage={isHomepage}>
+    <WorkspaceContainer isHomepage={isHomepage}>
       <WorkspaceHeader>
         {!isHomepage && (
           <HeaderTop>
             <div>
-              <WorkspaceTitle isDark={isDark}>My AuraCode Workspace</WorkspaceTitle>
+              <WorkspaceTitle>My AuraCode Workspace</WorkspaceTitle>
               {user && (
-                <UserInfo isDark={isDark}>
+                <UserInfo>
                   Welcome back, {user.user_metadata?.full_name || user.email}
                 </UserInfo>
               )}
             </div>
             
             <HeaderActions>
-              <CreateButton onClick={handleCreateNew} isDark={isDark}>
+              <CreateButton onClick={handleCreateNew}>
                 <Plus size={16} />
                 New Project
               </CreateButton>
-              <LogoutButton onClick={handleSignOut} isDark={isDark}>
+              <LogoutButton onClick={handleSignOut}>
                 <LogOut size={16} />
                 Sign Out
               </LogoutButton>
@@ -125,28 +124,26 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
 
         <HeaderControls isHomepage={isHomepage}>
           {isHomepage && (
-            <WorkspaceTitle isDark={isDark} isHomepage={isHomepage}>
+            <WorkspaceTitle isHomepage={isHomepage}>
               Your Projects
             </WorkspaceTitle>
           )}
           
-          <SearchContainer isDark={isDark}>
+          <SearchContainer>
             <Search size={16} />
             <SearchInput
               type="text"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              isDark={isDark}
             />
           </SearchContainer>
 
-          <SortContainer isDark={isDark}>
+          <SortContainer>
             <Filter size={14} />
             <SortSelect
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              isDark={isDark}
             >
               <option value="updated">Last Edited</option>
               <option value="created">Newest First</option>
@@ -154,31 +151,31 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
             </SortSelect>
           </SortContainer>
 
-          <StatsContainer isDark={isDark}>
+          <StatsContainer>
             {filteredSessions.length} project{filteredSessions.length !== 1 ? 's' : ''}
           </StatsContainer>
         </HeaderControls>
       </WorkspaceHeader>
 
       {filteredSessions.length === 0 ? (
-        <EmptyState isDark={isDark}>
+        <EmptyState>
           {sessions.length === 0 ? (
             <>
-              <EmptyIcon isDark={isDark}>🚀</EmptyIcon>
-              <EmptyTitle isDark={isDark}>Welcome to AuraCode!</EmptyTitle>
-              <EmptyText isDark={isDark}>
+              <EmptyIcon>🚀</EmptyIcon>
+              <EmptyTitle>Welcome to AuraCode!</EmptyTitle>
+              <EmptyText>
                 Start building your first web application with AI assistance.
               </EmptyText>
-              <CreateButton onClick={handleCreateNew} isDark={isDark}>
+              <CreateButton onClick={handleCreateNew}>
                 <Plus size={16} />
                 Create Your First Project
               </CreateButton>
             </>
           ) : (
             <>
-              <EmptyIcon isDark={isDark}>🔍</EmptyIcon>
-              <EmptyTitle isDark={isDark}>No projects found</EmptyTitle>
-              <EmptyText isDark={isDark}>
+              <EmptyIcon>🔍</EmptyIcon>
+              <EmptyTitle>No projects found</EmptyTitle>
+              <EmptyText>
                 Try adjusting your search or create a new project.
               </EmptyText>
             </>
@@ -192,7 +189,6 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
               session={session}
               onOpen={handleOpenSession}
               onDelete={handleDeleteSession}
-              isDark={isDark}
             />
           ))}
         </SessionsGridContainer>
@@ -201,20 +197,22 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isDark = true, isHom
   )
 }
 
-const WorkspaceContainer = styled.div<{ isDark: boolean; isHomepage?: boolean }>`
+const WorkspaceContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isHomepage',
+})<{ isHomepage?: boolean }>`
   padding: ${({ isHomepage }) => isHomepage ? '20px' : '40px'};
   min-height: ${({ isHomepage }) => isHomepage ? 'auto' : '100vh'};
-  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
-  background: ${({ isHomepage, isDark }) => 
+  color: white;
+  background: ${({ isHomepage }) => 
     isHomepage 
       ? 'rgba(0, 0, 0, 0.2)'
       : 'transparent'
   };
   border-radius: ${({ isHomepage }) => isHomepage ? '16px' : '0'};
   backdrop-filter: ${({ isHomepage }) => isHomepage ? 'blur(10px)' : 'none'};
-  border: ${({ isHomepage, isDark }) => 
+  border: ${({ isHomepage }) => 
     isHomepage 
-      ? `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}` 
+      ? '1px solid rgba(255, 255, 255, 0.1)' 
       : 'none'
   };
 `
@@ -230,8 +228,8 @@ const HeaderTop = styled.div`
   margin-bottom: 24px;
 `
 
-const UserInfo = styled.div<{ isDark: boolean }>`
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+const UserInfo = styled.div`
+  color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
   margin-top: 4px;
 `
@@ -242,14 +240,10 @@ const HeaderActions = styled.div`
   align-items: center;
 `
 
-const LogoutButton = styled.button<{ isDark: boolean }>`
-  background: ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-  };
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)'};
-  border: 1px solid ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
-  };
+const LogoutButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   padding: 12px 20px;
   font-weight: 500;
@@ -260,22 +254,24 @@ const LogoutButton = styled.button<{ isDark: boolean }>`
   transition: all 0.2s ease;
   
   &:hover {
-    background: ${({ isDark }) => 
-      isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'
-    };
-    color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
   }
 `
 
-const WorkspaceTitle = styled.h1<{ isDark: boolean; isHomepage?: boolean }>`
+const WorkspaceTitle = styled.h1.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isHomepage',
+})<{ isHomepage?: boolean }>`
   font-size: ${({ isHomepage }) => isHomepage ? '20px' : '28px'};
   font-weight: 700;
-  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  color: white;
   margin: ${({ isHomepage }) => isHomepage ? '0 0 16px 0' : '0'};
   font-family: 'Montserrat', sans-serif;
 `
 
-const HeaderControls = styled.div<{ isHomepage?: boolean }>`
+const HeaderControls = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isHomepage',
+})<{ isHomepage?: boolean }>`
   display: flex;
   gap: 16px;
   align-items: center;
@@ -283,69 +279,61 @@ const HeaderControls = styled.div<{ isHomepage?: boolean }>`
   margin-bottom: ${({ isHomepage }) => isHomepage ? '8px' : '0'};
 `
 
-const SearchContainer = styled.div<{ isDark: boolean }>`
+const SearchContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-  };
-  border: 1px solid ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
-  };
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   padding: 8px 12px;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+  color: rgba(255, 255, 255, 0.7);
   flex: 1;
   min-width: 250px;
 `
 
-const SearchInput = styled.input<{ isDark: boolean }>`
+const SearchInput = styled.input`
   background: none;
   border: none;
   outline: none;
-  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  color: white;
   font-size: 14px;
   flex: 1;
   
   &::placeholder {
-    color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+    color: rgba(255, 255, 255, 0.5);
   }
 `
 
-const SortContainer = styled.div<{ isDark: boolean }>`
+const SortContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+  color: rgba(255, 255, 255, 0.7);
 `
 
-const SortSelect = styled.select<{ isDark: boolean }>`
-  background: ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-  };
-  border: 1px solid ${({ isDark }) => 
-    isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
-  };
+const SortSelect = styled.select`
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
   padding: 6px 8px;
-  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  color: white;
   font-size: 12px;
   cursor: pointer;
   
   option {
-    background: ${({ isDark }) => isDark ? '#1a1a1a' : 'white'};
-    color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+    background: #1a1a1a;
+    color: white;
   }
 `
 
-const StatsContainer = styled.div<{ isDark: boolean }>`
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+const StatsContainer = styled.div`
+  color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   margin-left: auto;
 `
 
-const CreateButton = styled.button<{ isDark: boolean }>`
+const CreateButton = styled.button`
   background: #7c3aed;
   color: white;
   border: none;
@@ -364,40 +352,40 @@ const CreateButton = styled.button<{ isDark: boolean }>`
   }
 `
 
-const LoadingContainer = styled.div<{ isDark: boolean }>`
+const LoadingContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 50vh;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+  color: rgba(255, 255, 255, 0.7);
   font-size: 18px;
 `
 
-const EmptyState = styled.div<{ isDark: boolean }>`
+const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 80px 20px;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+  color: rgba(255, 255, 255, 0.7);
 `
 
-const EmptyIcon = styled.div<{ isDark: boolean }>`
+const EmptyIcon = styled.div`
   font-size: 64px;
   margin-bottom: 24px;
 `
 
-const EmptyTitle = styled.h2<{ isDark: boolean }>`
+const EmptyTitle = styled.h2`
   font-size: 24px;
   font-weight: 600;
-  color: ${({ isDark }) => isDark ? 'white' : '#1a1a1a'};
+  color: white;
   margin: 0 0 12px 0;
 `
 
-const EmptyText = styled.p<{ isDark: boolean }>`
+const EmptyText = styled.p`
   font-size: 16px;
-  color: ${({ isDark }) => isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'};
+  color: rgba(255, 255, 255, 0.7);
   margin: 0 0 32px 0;
   max-width: 400px;
 `
