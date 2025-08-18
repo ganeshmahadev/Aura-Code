@@ -21,9 +21,17 @@ export class WebSocketBus {
   }
 
   private websocketUrl(): string {
-    const url = new URL(this.config.url);
-    url.searchParams.set('auth_token', this.config.token);
-    return url.toString();
+    if (!this.config.url || !this.config.token) {
+      throw new Error(`Invalid WebSocket configuration: url=${this.config.url}, token=${!!this.config.token}`);
+    }
+    
+    try {
+      const url = new URL(this.config.url);
+      url.searchParams.set('auth_token', this.config.token);
+      return url.toString();
+    } catch (error) {
+      throw new Error(`Invalid WebSocket URL: ${this.config.url} - ${error}`);
+    }
   }
 
   public async connect(): Promise<WebSocket> {

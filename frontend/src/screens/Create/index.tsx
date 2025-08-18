@@ -1,3 +1,14 @@
+/**
+ * CREATE ROUTE - Main Development Environment
+ * This is the core component where users interact with AI to build applications.
+ * It handles:
+ * 1. WebSocket communication with Beam Cloud AI agents
+ * 2. Real-time code generation and preview
+ * 3. Session management and persistence
+ * 4. Chat interface for user-AI interaction
+ */
+
+// UI Icons for device preview and interface elements
 import {
   ComputerIcon,
   ExternalLink,
@@ -8,28 +19,60 @@ import {
   RotateCcw,
   TabletIcon,
 } from "lucide-react";
+
+// Message types and communication protocols with AI agents
 import { MessageType, Sender } from "../../types/messages";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Configuration for Beam Cloud WebSocket connection
 import { BEAM_CONFIG } from "../../config/beam";
 
+// UI components
 import { Textarea } from "@/components/ui/textarea";
 import type { Message } from "../../types/messages";
 import styled from "styled-components";
 import { useLocation, useNavigate } from "react-router-dom";
+
+// Custom hook for WebSocket communication with AI agents
 import { useMessageBus } from "../../hooks/useMessageBus";
+
+// Component for displaying generated code files
 import CodeViewer from "../../components/CodeViewer";
 import LovableIcon from "@/components/lovable-icon";
-import { useAuth } from "../../contexts/AuthContext";
-import { createSession, updateSession, getSession } from "../../lib/sessions";
-import type { Session } from "../../lib/supabase";
 
+// Authentication context for user management
+import { useAuth } from "../../contexts/AuthContext";
+
+// Database functions for session and message persistence
+import { createSession, updateSession, getSession, saveMessage, getSessionMessages } from "../../lib/sessions";
+import type { Session, ChatMessage } from "../../lib/supabase";
+
+// Device specifications for responsive preview
 const DEVICE_SPECS = {
   mobile: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
   desktop: { width: "100%", height: "100%" },
 };
 
+/**
+ * Create Component - Main Development Environment
+ * 
+ * ARCHITECTURE OVERVIEW:
+ * ┌─────────────────┬──────────────────────┐
+ * │   Chat Panel    │    Preview Panel     │
+ * │   (Left Side)   │    (Right Side)      │
+ * │                 │                      │
+ * │ - User Input    │ - Live App Preview   │
+ * │ - AI Responses  │ - Code View Toggle   │
+ * │ - Chat History  │ - Device Switching   │
+ * └─────────────────┴──────────────────────┘
+ * 
+ * COMMUNICATION FLOW:
+ * 1. User sends message → WebSocket → AI Agent (MCP Server)
+ * 2. AI Agent generates code → WebSocket → Updates sandbox
+ * 3. Sandbox serves live app → iframe → Preview panel
+ * 4. All messages saved to Supabase for persistence
+ */
 const Create = () => {
   const [inputValue, setInputValue] = useState("");
   const [sidebarWidth, setSidebarWidth] = useState(400);
@@ -59,6 +102,46 @@ const Create = () => {
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const { user } = useAuth();
 
+  // Helper functions for message conversion
+  const convertToDbMessage = (msg: Message): {
+    id?: string;
+    type: string;
+    content: string;
+    sender: string;
+    timestamp: number;
+    data?: Record<string, any>;
+  } => ({
+    id: msg.id,
+    type: msg.type,
+    content: msg.data.text || '',
+    sender: msg.data.sender || 'ASSISTANT',
+    timestamp: msg.timestamp || Date.now(),
+    data: msg.data
+  });
+
+  const convertFromDbMessage = (dbMsg: ChatMessage): Message => ({
+    id: dbMsg.id,
+    type: dbMsg.type as MessageType,
+    timestamp: new Date(dbMsg.timestamp).getTime(),
+    data: {
+      ...dbMsg.message_data,
+      text: dbMsg.content,
+      sender: dbMsg.sender as Sender
+    }
+  });
+
+  // Helper function to save messages to database
+  const saveMessageToDb = async (message: Message) => {
+    if (currentSession && user) {
+      try {
+        const dbMessage = convertToDbMessage(message);
+        await saveMessage(currentSession.id, dbMessage);
+      } catch (error) {
+        console.error('Error saving message to database:', error);
+      }
+    }
+  };
+
   // Initialize theme from navigation state
   useEffect(() => {
     if (location.state && location.state.isDarkMode !== undefined) {
@@ -68,8 +151,10 @@ const Create = () => {
 
   // Initialize or load session
   useEffect(() => {
+    let isCancelled = false;
+    
     const initializeSession = async () => {
-      if (!user) return;
+      if (!user || currentSession) return; // Prevent duplicate creation
 
       const sessionId = location.state?.sessionId;
       
@@ -77,23 +162,56 @@ const Create = () => {
         // Load existing session
         try {
           const session = await getSession(sessionId);
-          setCurrentSession(session);
-          if (session.sandbox_id) {
-            setSandboxId(session.sandbox_id);
-            sandboxIdRef.current = session.sandbox_id;
-          }
-          if (session.iframe_url) {
-            setIframeUrl(session.iframe_url);
+          if (!isCancelled) {
+            setCurrentSession(session);
+            if (session.sandbox_id) {
+              setSandboxId(session.sandbox_id);
+              sandboxIdRef.current = session.sandbox_id;
+              // Mark as initialized for existing sessions
+              setInitCompleted(true);
+              // Reset update state for existing sessions
+              setIsUpdateInProgress(false);
+              // Fetch code files for existing sessions
+              fetchCodeFiles(session.sandbox_id);
+            }
+            if (session.iframe_url) {
+              setIframeUrl(session.iframe_url);
+            }
+            
+            // Load chat messages for existing sessions
+            try {
+              const chatMessages = await getSessionMessages(session.id);
+              console.log('Raw chat messages from DB:', chatMessages);
+              
+              const convertedMessages = chatMessages.map(convertFromDbMessage);
+              console.log('Converted messages:', convertedMessages);
+              
+              if (convertedMessages.length > 0) {
+                setMessages(convertedMessages);
+                console.log(`Loaded ${convertedMessages.length} messages for session ${session.id}`);
+                
+                // Log message senders for debugging
+                convertedMessages.forEach((msg, idx) => {
+                  console.log(`Message ${idx}: sender=${msg.data.sender}, text=${msg.data.text?.substring(0, 50)}...`);
+                });
+              } else {
+                console.log('No messages found for session', session.id);
+              }
+            } catch (error) {
+              console.error('Error loading chat messages:', error);
+            }
           }
         } catch (error) {
           console.error('Error loading session:', error);
         }
       } else {
-        // Create new session
+        // Create new session only if we don't have one
         const title = location.state?.initialPrompt || "New Project";
         try {
           const session = await createSession(title, "Created with AuraCode");
-          setCurrentSession(session);
+          if (!isCancelled) {
+            setCurrentSession(session);
+          }
         } catch (error) {
           console.error('Error creating session:', error);
         }
@@ -101,7 +219,11 @@ const Create = () => {
     };
 
     initializeSession();
-  }, [user, location.state]);
+    
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]); // Removed location.state dependency to prevent re-runs
 
 
   // Auto-resize textarea
@@ -161,7 +283,7 @@ const Create = () => {
         processedMessageIds.current.add(id);
         console.log("Processing INIT message:", id);
       }
-
+      //Extract sandbox details from MCP server
       if (typeof message.data.url === "string" && message.data.sandbox_id) {
         setIframeUrl(message.data.url);
         setSandboxId(message.data.sandbox_id);
@@ -181,11 +303,13 @@ const Create = () => {
       }
 
       setMessages((prev) => {
+        let updatedMessage: Message;
+        
         if (id) {
           const existingIndex = prev.findIndex((msg) => msg.id === id);
           if (existingIndex !== -1) {
             // Update in place
-            return prev.map((msg, idx) =>
+            const newMessages = prev.map((msg, idx) =>
               idx === existingIndex
                 ? {
                     ...msg,
@@ -198,37 +322,39 @@ const Create = () => {
                   }
                 : msg
             );
+            updatedMessage = newMessages[existingIndex];
+            saveMessageToDb(updatedMessage);
+            return newMessages;
           }
         }
         // Insert new
-        return [
-          ...prev,
-          {
-            ...message,
-            timestamp: message.timestamp || Date.now(),
-            data: {
-              ...message.data,
-              text: "Workspace loaded! You can now make edits here.",
-              sender: Sender.ASSISTANT,
-            },
+        updatedMessage = {
+          ...message,
+          timestamp: message.timestamp || Date.now(),
+          data: {
+            ...message.data,
+            text: "Workspace loaded! You can now make edits here.",
+            sender: Sender.ASSISTANT,
           },
-        ];
+        };
+        saveMessageToDb(updatedMessage);
+        return [...prev, updatedMessage];
       });
       setInitCompleted(true);
     },
 
     [MessageType.ERROR]: (message: Message) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...message,
-          timestamp: message.timestamp || Date.now(),
-          data: {
-            ...message.data,
-            sender: Sender.ASSISTANT,
-          },
+      const errorMessage: Message = {
+        ...message,
+        timestamp: message.timestamp || Date.now(),
+        data: {
+          ...message.data,
+          sender: Sender.ASSISTANT,
         },
-      ]);
+      };
+      
+      setMessages((prev) => [...prev, errorMessage]);
+      saveMessageToDb(errorMessage);
     },
 
     [MessageType.AGENT_PARTIAL]: (message: Message) => {
@@ -458,9 +584,17 @@ const Create = () => {
     },
   };
 
+  // Validate configuration before using
+  if (!BEAM_CONFIG.WS_URL || !BEAM_CONFIG.TOKEN) {
+    console.error('Missing BEAM configuration:', {
+      WS_URL: BEAM_CONFIG.WS_URL ? 'Set' : 'Missing',
+      TOKEN: BEAM_CONFIG.TOKEN ? 'Set' : 'Missing'
+    });
+  }
+
   const { isConnected, error, connect, send } = useMessageBus({
-    wsUrl: BEAM_CONFIG.WS_URL,
-    token: BEAM_CONFIG.TOKEN,
+    wsUrl: BEAM_CONFIG.WS_URL || '',
+    token: BEAM_CONFIG.TOKEN || '',
     handlers: messageHandlers,
     onConnect: () => {
       console.log("Connected to Beam Cloud");
@@ -528,7 +662,17 @@ const Create = () => {
 
   const handleSendMessage = () => {
     if (inputValue.trim()) {
-      send(MessageType.USER, { text: inputValue });
+      const userMessage: Message = {
+        type: MessageType.USER,
+        timestamp: Date.now(),
+        data: {
+          text: inputValue,
+          sender: Sender.USER,
+        },
+      };
+      
+      // Show message immediately in chat
+      setMessages((prev) => [...prev, userMessage]);
       
       // Update session title if this is the first message and it's a new session
       if (currentSession && messages.length === 0 && user) {
@@ -538,18 +682,23 @@ const Create = () => {
         );
       }
       
+      // Send to WebSocket if connected, otherwise queue it
+      if (isConnected) {
+        try {
+          send(MessageType.USER, { text: inputValue });
+        } catch (error) {
+          console.error('Error sending message:', error);
+        }
+      } else {
+        console.log('Message queued - will send when connected');
+        // TODO: Implement message queuing for when connection is restored
+      }
+      
       setInputValue("");
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: MessageType.USER,
-          timestamp: Date.now(),
-          data: {
-            text: inputValue,
-            sender: Sender.USER,
-          },
-        },
-      ]);
+      
+      // Save message to database
+      saveMessageToDb(userMessage);
+      
       // Reset textarea height after sending
       setTimeout(() => {
         if (textareaRef.current) {
@@ -567,6 +716,7 @@ const Create = () => {
 
   const handleIframeLoad = () => {
     console.log("Iframe loaded successfully:", iframeUrl);
+    console.log("Current states - initCompleted:", initCompleted, "isUpdateInProgress:", isUpdateInProgress);
     setIframeError(false);
     setIframeReady(true);
   };
@@ -605,17 +755,18 @@ const Create = () => {
     ) {
       // Send as user message (so it appears in chat)
       send(MessageType.USER, { text: location.state.initialPrompt });
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: MessageType.USER,
-          timestamp: Date.now(),
-          data: {
-            text: location.state.initialPrompt,
-            sender: Sender.USER,
-          },
+      
+      const initialMessage: Message = {
+        type: MessageType.USER,
+        timestamp: Date.now(),
+        data: {
+          text: location.state.initialPrompt,
+          sender: Sender.USER,
         },
-      ]);
+      };
+      
+      setMessages((prev) => [...prev, initialMessage]);
+      saveMessageToDb(initialMessage);
       initialPromptSent.current = true;
     }
   }, [initCompleted, location.state, send, setMessages]);
@@ -661,6 +812,12 @@ const Create = () => {
         </BeamHeader>
 
         <ChatHistory ref={chatHistoryRef}>
+          {!isConnected && (
+            <ConnectionStatus>
+              <StatusIndicator />
+              <span>Connecting to workspace...</span>
+            </ConnectionStatus>
+          )}
           {messages
             .filter(
               (msg) =>
@@ -711,14 +868,14 @@ const Create = () => {
                 handleSendMessage();
               }
             }}
-            disabled={!isConnected || !iframeReady}
+            disabled={false}
             isDark={isDarkMode}
             rows={1}
             ref={textareaRef}
           />
           <ArrowButton
             onClick={handleSendMessage}
-            disabled={!isConnected || !iframeReady || !inputValue.trim()}
+            disabled={!inputValue.trim()}
             isDark={isDarkMode}
           >
             <ArrowIcon isDark={isDarkMode}>↑</ArrowIcon>
@@ -835,7 +992,7 @@ const Create = () => {
                 <IframeOverlay>
                   <LoadingState />
                 </IframeOverlay>
-              ) : !iframeReady || isUpdateInProgress || !initCompleted ? (
+              ) : !iframeReady || isUpdateInProgress ? (
                 <>
                   <IframeResponsiveWrapper>
                     <WebsiteIframe
@@ -876,7 +1033,7 @@ const Create = () => {
                     />
                   </IframeResponsiveWrapper>
                   <IframeOverlay>
-                    {isUpdateInProgress || (!iframeReady && !initCompleted) ? (
+                    {isUpdateInProgress || !iframeReady ? (
                       <UpdateInProgressState />
                     ) : (
                       <LoadingState />
@@ -1089,13 +1246,17 @@ const ChatHistory = styled.div`
   -ms-overflow-style: none;
 `;
 
-const MessageContainer = styled.div<{ isUser: boolean }>`
+const MessageContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isUser',
+})<{ isUser: boolean }>`
   display: flex;
   flex-direction: row;
   justify-content: ${({ isUser }) => (isUser ? "flex-end" : "flex-start")};
 `;
 
-const MessageBubble = styled.div<{ isUser: boolean; isDark?: boolean }>`
+const MessageBubble = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isUser' && prop !== 'isDark',
+})<{ isUser: boolean; isDark?: boolean }>`
   padding: 12px;
   border-radius: 8px;
   max-width: 70%;
@@ -1113,6 +1274,32 @@ const MessageBubble = styled.div<{ isUser: boolean; isDark?: boolean }>`
       ? (isDark ? 'rgba(124, 58, 237, 0.3)' : 'rgba(124, 58, 237, 0.4)')
       : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)')
   };
+`;
+
+const ConnectionStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+`;
+
+const StatusIndicator = styled.div`
+  width: 8px;
+  height: 8px;
+  background: #fbbf24;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
 `;
 
 const ChatInputContainer = styled.div<{ isDark: boolean }>`

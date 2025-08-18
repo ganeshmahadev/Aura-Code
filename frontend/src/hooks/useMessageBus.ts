@@ -1,3 +1,21 @@
+/**
+ * useMessageBus Hook - WebSocket Communication with AI Agents
+ * 
+ * This hook manages the real-time communication between the frontend and the AI agents
+ * running on Beam Cloud. It handles:
+ * 
+ * 1. WebSocket connection establishment and management
+ * 2. Message serialization/deserialization
+ * 3. Connection state management (connecting, connected, error)
+ * 4. Automatic reconnection with exponential backoff
+ * 
+ * COMMUNICATION PROTOCOL:
+ * Frontend ←→ WebSocket ←→ Beam Cloud ←→ MCP Server ←→ AI Agents
+ * 
+ * The hook abstracts away the complexity of WebSocket management and provides
+ * a simple interface for sending messages and handling responses.
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageBus } from "../services/messageBus";
 import { WebSocketBus, createWebSocketBus } from "../services/websocketBus";
@@ -94,6 +112,14 @@ export const useMessageBus = ({
   const connect = useCallback(async () => {
     if (!messageBusRef.current) {
       throw new Error('MessageBus not initialized');
+    }
+
+    if (!wsUrl || !token) {
+      const errorMsg = `Invalid connection configuration: wsUrl=${!!wsUrl}, token=${!!token}`;
+      console.error(errorMsg);
+      setError(errorMsg);
+      onError?.(errorMsg);
+      return;
     }
 
     setIsConnecting(true);

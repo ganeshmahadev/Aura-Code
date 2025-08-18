@@ -28,6 +28,17 @@ export type Session = {
   is_active: boolean
 }
 
+export type ChatMessage = {
+  id: string
+  session_id: string
+  type: string
+  content: string
+  sender: string
+  timestamp: string
+  message_data?: Record<string, any>
+  created_at: string
+}
+
 export type Profile = {
   id: string
   email: string

@@ -1,24 +1,38 @@
 import "./App.css";
 
+// React Router for navigation between different screens
 import { Route, Routes } from "react-router-dom";
+// Authentication context for managing user login state across the app
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+// Component to protect routes that require authentication
 import { ProtectedRoute } from "./components/ProtectedRoute";
+// Authentication screens for user login/signup
 import { LoginPage } from "./screens/Auth/LoginPage";
 import { SignupPage } from "./screens/Auth/SignupPage";
+// Main development environment where users interact with AI to build apps
 import CreateRoute from "./screens/Create";
+// Landing page for non-authenticated users
 import NewScreen from "./screens/New";
+// Component to display user's project workspace with saved sessions
 import { SessionsGrid } from "./components/SessionsGrid";
+// Header component with logo, navigation, and user menu
 import { Header } from "./components/header";
 import styled from "styled-components";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 
+/**
+ * HomePage Component - Main landing page that adapts based on authentication state
+ * - For authenticated users: Shows workspace with chat interface and project grid
+ * - For non-authenticated users: Shows the NewScreen (landing page)
+ */
 const HomePage: React.FC = () => {
-  const { user, loading } = useAuth();
-  const [input, setInput] = useState("");
-  const navigate = useNavigate();
+  const { user, loading } = useAuth(); // Get current user and loading state
+  const [input, setInput] = useState(""); // State for the main chat input
+  const navigate = useNavigate(); // Navigation hook for routing
   
+  // Show loading state while authentication is being determined
   if (loading) {
     return (
       <div style={{

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Plus, Search, Filter, LogOut } from 'lucide-react'
 import { SessionCard } from './SessionCard'
-import { getUserSessions, deleteSession } from '../lib/sessions'
+import { getUserSessions, deleteSession, removeDuplicateSessions } from '../lib/sessions'
 import type { Session } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -30,6 +30,9 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isHomepage = false }
 
   const loadSessions = async () => {
     try {
+      // Clean up any existing duplicates first
+      await removeDuplicateSessions()
+      
       const userSessions = await getUserSessions()
       setSessions(userSessions)
     } catch (error) {
