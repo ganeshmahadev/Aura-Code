@@ -47,26 +47,14 @@ import { useAuth } from "../../contexts/AuthContext";
 import { createSession, updateSession, getSession, saveMessage, getSessionMessages } from "../../lib/sessions";
 import type { Session, ChatMessage } from "../../lib/supabase";
 
-// Device specifications for responsive preview
+// DEVICE SPECIFICATIONS FOR RESPONSIVE PREVIEW
 const DEVICE_SPECS = {
-  mobile: { width: 390, height: 844 },
-  tablet: { width: 768, height: 1024 },
-  desktop: { width: "100%", height: "100%" },
+  mobile: { width: 390, height: 844 },      // iPhone 12 Pro dimensions
+  tablet: { width: 768, height: 1024 },     // iPad dimensions  
+  desktop: { width: "100%", height: "100%" }, // Full container size
 };
 
 /**
- * Create Component - Main Development Environment
- * 
- * ARCHITECTURE OVERVIEW:
- * ┌─────────────────┬──────────────────────┐
- * │   Chat Panel    │    Preview Panel     │
- * │   (Left Side)   │    (Right Side)      │
- * │                 │                      │
- * │ - User Input    │ - Live App Preview   │
- * │ - AI Responses  │ - Code View Toggle   │
- * │ - Chat History  │ - Device Switching   │
- * └─────────────────┴──────────────────────┘
- * 
  * COMMUNICATION FLOW:
  * 1. User sends message → WebSocket → AI Agent (MCP Server)
  * 2. AI Agent generates code → WebSocket → Updates sandbox
@@ -367,10 +355,11 @@ const Create = () => {
       }
 
       if (text && text.trim()) {
+        let updatedMessage: Message;
         setMessages((prev) => {
           const existingIndex = prev.findIndex((msg) => msg.id === id);
           if (existingIndex !== -1) {
-            return prev.map((msg, idx) =>
+            const newMessages = prev.map((msg, idx) =>
               idx === existingIndex
                 ? {
                     ...msg,
@@ -384,22 +373,26 @@ const Create = () => {
                   }
                 : msg
             );
+            updatedMessage = newMessages[existingIndex];
+            return newMessages;
           }
           // Insert new
-          return [
-            ...prev,
-            {
-              ...message,
-              timestamp: message.timestamp || Date.now(),
-              data: {
-                ...message.data,
-                text: text.replace(/\\/g, ""),
-                isStreaming: true,
-                sender: Sender.ASSISTANT,
-              },
+          updatedMessage = {
+            ...message,
+            timestamp: message.timestamp || Date.now(),
+            data: {
+              ...message.data,
+              text: text.replace(/\\/g, ""),
+              isStreaming: true,
+              sender: Sender.ASSISTANT,
             },
-          ];
+          };
+          return [...prev, updatedMessage];
         });
+        // Save AI message to database
+        if (updatedMessage!) {
+          saveMessageToDb(updatedMessage);
+        }
       }
     },
 
@@ -411,10 +404,11 @@ const Create = () => {
         return;
       }
       if (text && text.trim()) {
+        let updatedMessage: Message;
         setMessages((prev) => {
           const existingIndex = prev.findIndex((msg) => msg.id === id);
           if (existingIndex !== -1) {
-            return prev.map((msg, idx) =>
+            const newMessages = prev.map((msg, idx) =>
               idx === existingIndex
                 ? {
                     ...msg,
@@ -428,22 +422,26 @@ const Create = () => {
                   }
                 : msg
             );
+            updatedMessage = newMessages[existingIndex];
+            return newMessages;
           }
           // Insert new
-          return [
-            ...prev,
-            {
-              ...message,
-              timestamp: message.timestamp || Date.now(),
-              data: {
-                ...message.data,
-                text: text.replace(/\\/g, ""),
-                isStreaming: false,
-                sender: Sender.ASSISTANT,
-              },
+          updatedMessage = {
+            ...message,
+            timestamp: message.timestamp || Date.now(),
+            data: {
+              ...message.data,
+              text: text.replace(/\\/g, ""),
+              isStreaming: false,
+              sender: Sender.ASSISTANT,
             },
-          ];
+          };
+          return [...prev, updatedMessage];
         });
+        // Save final AI message to database
+        if (updatedMessage!) {
+          saveMessageToDb(updatedMessage);
+        }
       }
     },
 
@@ -451,12 +449,13 @@ const Create = () => {
       setIsUpdateInProgress(true);
 
       const id = message.id;
+      let updatedMessage: Message;
 
       setMessages((prev) => {
         if (id) {
           const existingIndex = prev.findIndex((msg) => msg.id === id);
           if (existingIndex !== -1) {
-            return prev.map((msg, idx) =>
+            const newMessages = prev.map((msg, idx) =>
               idx === existingIndex
                 ? {
                     ...msg,
@@ -469,22 +468,27 @@ const Create = () => {
                   }
                 : msg
             );
+            updatedMessage = newMessages[existingIndex];
+            return newMessages;
           }
         }
 
-        return [
-          ...prev,
-          {
-            ...message,
-            timestamp: message.timestamp || Date.now(),
-            data: {
-              ...message.data,
-              text: "Ok - I'll make those changes!",
-              sender: Sender.ASSISTANT,
-            },
+        updatedMessage = {
+          ...message,
+          timestamp: message.timestamp || Date.now(),
+          data: {
+            ...message.data,
+            text: "Ok - I'll make those changes!",
+            sender: Sender.ASSISTANT,
           },
-        ];
+        };
+        return [...prev, updatedMessage];
       });
+      
+      // Save update message to database
+      if (updatedMessage!) {
+        saveMessageToDb(updatedMessage);
+      }
     },
 
     [MessageType.UPDATE_FILE]: (message: Message) => {
@@ -531,6 +535,8 @@ const Create = () => {
     [MessageType.UPDATE_COMPLETED]: (message: Message) => {
       setIsUpdateInProgress(false);
       const id = message.id;
+      let updatedMessage: Message;
+      
       setMessages((prev) => {
         // Remove all UPDATE_FILE messages
         const filtered = prev.filter(
@@ -540,7 +546,7 @@ const Create = () => {
         if (id) {
           const existingIndex = filtered.findIndex((msg) => msg.id === id);
           if (existingIndex !== -1) {
-            return filtered.map((msg, idx) =>
+            const newMessages = filtered.map((msg, idx) =>
               idx === existingIndex
                 ? {
                     ...msg,
@@ -553,22 +559,28 @@ const Create = () => {
                   }
                 : msg
             );
+            updatedMessage = newMessages[existingIndex];
+            return newMessages;
           }
         }
         // Insert new
-        return [
-          ...filtered,
-          {
-            ...message,
-            timestamp: message.timestamp || Date.now(),
-            data: {
-              ...message.data,
-              text: "Update completed!",
-              sender: Sender.ASSISTANT,
-            },
+        updatedMessage = {
+          ...message,
+          timestamp: message.timestamp || Date.now(),
+          data: {
+            ...message.data,
+            text: "Update completed!",
+            sender: Sender.ASSISTANT,
           },
-        ];
+        };
+        return [...filtered, updatedMessage];
       });
+      
+      // Save completion message to database
+      if (updatedMessage!) {
+        saveMessageToDb(updatedMessage);
+      }
+      
       refreshIframe();
       // Refetch code files if we're in code view or have fetched them before
       if (sandboxIdRef.current && (viewMode === "code" || Object.keys(codeFiles).length > 0)) {
@@ -595,6 +607,7 @@ const Create = () => {
   const { isConnected, error, connect, send } = useMessageBus({
     wsUrl: BEAM_CONFIG.WS_URL || '',
     token: BEAM_CONFIG.TOKEN || '',
+    initData: sandboxId ? { sandbox_id: sandboxId, sessionId: currentSession?.id } : undefined,
     handlers: messageHandlers,
     onConnect: () => {
       console.log("Connected to Beam Cloud");
@@ -659,7 +672,7 @@ const Create = () => {
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizing]);
-
+//handles the sending of messages to the AI agent
   const handleSendMessage = () => {
     if (inputValue.trim()) {
       const userMessage: Message = {
@@ -691,7 +704,6 @@ const Create = () => {
         }
       } else {
         console.log('Message queued - will send when connected');
-        // TODO: Implement message queuing for when connection is restored
       }
       
       setInputValue("");
@@ -887,6 +899,7 @@ const Create = () => {
 
       <MainContent hasIframe={!!iframeUrl} isDark={isDarkMode} className="bg-card">
         {isConnected ? (
+          //iframe container for preview from sandbox
           <IframeContainer>
             <UrlBarContainer isDark={isDarkMode}>
               <CodeToggleButton

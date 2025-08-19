@@ -1,3 +1,19 @@
+/**
+ * AUTHENTICATION SYSTEM ARCHITECTURE
+ * 
+ * USER AUTHENTICATION FLOW:
+ * 1. Supabase handles OAuth, email/password, and social logins
+ * 2. JWT tokens are automatically managed by Supabase client
+ * 3. Row Level Security (RLS) policies protect user data in database
+ * 4. Authentication state is managed via React Context across entire app
+ * 5. Protected routes redirect unauthenticated users to login
+ * 
+ * SECURITY FEATURES:
+ * - Automatic token refresh by Supabase
+ * - RLS policies ensure users only access their own sessions/messages
+ * - Secure session management with httpOnly cookies option
+ * - Real-time auth state synchronization across browser tabs
+ */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'

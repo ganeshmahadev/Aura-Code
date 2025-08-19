@@ -1,31 +1,86 @@
+/**
+ * WEBSOCKET BUS - LOW-LEVEL WEBSOCKET CONNECTION MANAGER
+ * 
+ * This class handles the raw WebSocket or browser websocket API connection to the AI Agent running on Beam Cloud.
+ * It's responsible for:
+ * 
+ * 1. FRONTEND → AGENT COMMUNICATION ARCHITECTURE:
+ *    Frontend (React) → WebSocketBus → Beam Cloud Agent → AI Processing
+ *                    ↑ Real-time WebSocket Connection
+ * 
+ * 2. CONNECTION MANAGEMENT:
+ *    - Establishes secure WebSocket connection with auth token
+ *    - Handles connection state (connecting, connected, disconnected)
+ *    - Implements automatic reconnection with exponential backoff
+ *    - Manages authentication via URL parameters
+ * 
+ * 3. MESSAGE FLOW:
+ *    - Serializes outgoing messages to JSON for wire transmission
+ *    - Deserializes incoming messages and validates message types
+ *    - Routes messages through MessageBus for higher-level handling
+ *    - Handles special message types (PING, INIT) automatically
+ * 
+ * 4. SESSION RESTORATION:
+ *    - Sends INIT message with existing sandbox_id for session restoration
+ *    - Enables seamless continuation of previous development sessions
+ *    - Maintains session context across browser refreshes
+ * 
+ * WebSocket URL Format: wss://lovable-agent-32a2c27-v4.app.beam.cloud?auth_token=...
+ */
 import { MessageBus } from './messageBus';
 import type { Message } from '../types/messages';
 import { MessageType, createMessage } from '../types/messages';
 
 export interface WebSocketBusConfig {
-  url: string;
-  token: string;
-  messageBus: MessageBus;
+  url: string;                    // Beam Cloud agent WebSocket URL
+  token: string;                  // Authentication token for secure connection
+  messageBus: MessageBus;         // Higher-level message routing system
+  initData?: {                    // Optional data for session restoration
+    sandbox_id?: string;          // Existing sandbox to restore (vs creating new one)
+    sessionId?: string;           // Database session ID for chat history
+    [key: string]: any;           // Additional restoration parameters
+  };
 }
 
 export class WebSocketBus {
+  /**
+   * WEBSOCKET BUS CLASS - Manages direct connection to AI Agent
+   * 
+   * This class is the lowest layer in the communication stack:
+   * React Component → useMessageBus → MessageBus → WebSocketBus → Agent
+   */
+  
+  // Core WebSocket connection instance
   private ws: WebSocket | null = null;
+  
+  // Configuration including agent URL, auth token, and restoration data
   private config: WebSocketBusConfig;
-  private isReady = false;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  
+  // Connection state management
+  private isReady = false;                    // True when connection is established and ready
+  private reconnectAttempts = 0;              // Current number of reconnection attempts
+  private maxReconnectAttempts = 5;           // Max attempts before giving up
+  private reconnectDelay = 1000;              // Base delay in ms, grows exponentially
 
   constructor(config: WebSocketBusConfig) {
     this.config = config;
   }
 
+  /**
+   * WEBSOCKET URL CONSTRUCTION
+   * 
+   * Builds authenticated WebSocket URL for connecting to Beam Cloud agent.
+   * Format: wss://lovable-agent-32a2c27-v4.app.beam.cloud?auth_token=xyz
+   * 
+   * The auth_token parameter enables secure communication with the agent.
+   */
   private websocketUrl(): string {
     if (!this.config.url || !this.config.token) {
       throw new Error(`Invalid WebSocket configuration: url=${this.config.url}, token=${!!this.config.token}`);
     }
     
     try {
+      // Parse base URL and add authentication token as query parameter
       const url = new URL(this.config.url);
       url.searchParams.set('auth_token', this.config.token);
       return url.toString();
@@ -34,25 +89,41 @@ export class WebSocketBus {
     }
   }
 
+  /**
+   * MAIN CONNECTION METHOD - Establishes WebSocket connection to AI Agent
+   * 
+   * FRONTEND → AGENT COMMUNICATION FLOW:
+   * 1. Creates WebSocket connection to Beam Cloud agent
+   * 2. Sets up event handlers for messages, connection, disconnection, errors
+   * 3. Sends INIT message with session restoration data (if available)
+   * 4. Waits for connection to be ready before returning
+   * 
+   * This method handles the complete connection lifecycle.
+   */
   public async connect(): Promise<WebSocket> {
     const wsUrl = this.websocketUrl();    
     this.ws = new WebSocket(wsUrl);
 
+    // MESSAGE RECEPTION HANDLER - Processes incoming messages from AI Agent
     this.ws.onmessage = (event: MessageEvent) => {
       try {
+        // Parse JSON message from agent
         const rawMessage = JSON.parse(event.data);
         console.log('Received WebSocket message:', rawMessage);
         
+        // Convert raw message to typed Message object
         const message = this.convertRawMessage(rawMessage);
         if (message) {
-          // Handle ping messages automatically
+          // Handle ping messages automatically for connection health
           if (message.type === MessageType.PING) {
             this.sendMessage(createMessage(MessageType.PING, {}));
           }
+          // Route message through MessageBus to higher-level handlers
           this.config.messageBus.emit(message);
         }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
+        // Send error through MessageBus for UI error handling
         this.config.messageBus.sendError('Failed to parse message', { 
           rawData: event.data,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -60,13 +131,20 @@ export class WebSocketBus {
       }
     };
 
+    // CONNECTION ESTABLISHED HANDLER
     this.ws.onopen = () => {
       console.log('WebSocket connected');
       this.isReady = true;
       this.reconnectAttempts = 0;
       this.config.messageBus.setConnected(true);
       
-      this.sendMessage(createMessage(MessageType.INIT, {}));
+      // If we have existing session data (sandbox_id, sessionId), send it in INIT
+      // This tells the agent to restore an existing sandbox instead of creating new one
+      const initData = this.config.initData || {};
+      console.log('Sending INIT with data:', initData);
+      
+      // Send INIT message to agent - this triggers sandbox creation/restoration
+      this.sendMessage(createMessage(MessageType.INIT, initData));
     };
 
     this.ws.onclose = (event) => {
@@ -92,8 +170,7 @@ export class WebSocketBus {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    if (!this.ws) {
-      throw new Error('WebSocket connection failed');
+    if (!this.ws) {      throw new Error('WebSocket connection failed');
     }
 
     return this.ws;

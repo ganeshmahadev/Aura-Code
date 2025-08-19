@@ -25,18 +25,41 @@ DEFAULT_PROJECT_ROOT = "/app"
 
 @mcp.tool
 def create_app_environment() -> dict:
+    """
+    MCP TOOL: CREATE_APP_ENVIRONMENT
+    
+    This is where the LIVE PREVIEW URL is generated!
+    
+    SANDBOX CREATION PROCESS:
+    1. Beam Cloud creates isolated container with Node.js + React template
+    2. Installs dependencies (npm install) with upgraded resources (2 CPU, 2GB RAM)
+    3. Starts development server on port 3000 
+    4. Exposes port to generate public URL for iframe preview
+    5. Returns sandbox_id and preview_url to frontend
+    
+    URL GENERATION: Beam Cloud's expose_port(3000) creates unique public URL
+    Format: https://sandbox-{id}.beam.cloud 
+    This URL is embedded in frontend's iframe for live preview
+    """
     print("Creating app environment...")
 
+    # Create isolated sandbox environment with upgraded resources
     sandbox = Sandbox(
         name="lovable-clone",
-        cpu=1,
-        memory=1024,
-        image=image,
-        keep_warm_seconds=300,
+        cpu=1,                    
+        memory=1024,              
+        image=image,              # Pre-built image with Node.js 20 + React template
+        keep_warm_seconds=300,    
     ).create()
 
+    # LIVE PREVIEW URL GENERATION: This creates the public URL for iframe
+    # Beam Cloud automatically handles routing and SSL certificates
     url = sandbox.expose_port(3000)
     print(f"React app created and started successfully! Access it at: {url}")
+    
+    # Start React development server with iframe-compatible configuration
+    # --host :: allows external connections (required for Beam Cloud routing)
+    # __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS allows .beam.cloud domain
     sandbox.process.exec(
         "sh",
         "-c",
@@ -45,8 +68,8 @@ def create_app_environment() -> dict:
 
     print("Created app environment...")
     return {
-        "url": url,
-        "sandbox_id": sandbox.sandbox_id(),
+        "url": url,                    # Live preview URL for frontend iframe
+        "sandbox_id": sandbox.sandbox_id(),  # Unique ID for future operations
     }
 
 

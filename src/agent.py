@@ -65,13 +65,40 @@ class ToolType(Enum):
 
 
 class Agent:
+    """
+    CORE AI AGENT CLASS - Orchestrates AI-powered development workflow
+    
+    This class bridges three key components:
+    1. BAML Client - Handles RPC-like communication with OpenAI LLMs
+    2. MCP Tools - Provides sandbox file operations and environment management  
+    3. Frontend Communication - Streams real-time responses via WebSocket
+    
+    COMMUNICATION FLOW:
+    Frontend → Agent → BAML Client (OpenAI) → Code Generation
+                  ↓
+    Agent → MCP Tools → Sandbox Operations (files, commands)
+                  ↓  
+    Agent → Frontend → Live Preview Updates
+    """
     def __init__(self, *, mcp_url: str):
+        # BAML Client: Handles OpenAI API communication with structured prompts/responses
+        # Uses RPC-style function calls to generate code based on user feedback
         self.model_client: BamlSyncClient = b
+        
+        # MCP Server URL: Endpoint for Model Context Protocol tools
+        # Provides sandbox file operations, command execution, environment management
         self.mcp_url: str = mcp_url
+        
+        # Available MCP tools loaded dynamically from the MCP server
         self.tools: list[Tool] = []
+        
+        # Sandbox initialization data (sandbox_id, preview_url, etc.)
         self.init_data: dict = {}
+        
+        # Conversation history maintained for context in multi-turn interactions
         self.history: list[dict] = []
-
+        
+    #MCP tool calls
     async def init(self):
         await self.load_tools()
         await self.create_app_environment()
@@ -137,15 +164,38 @@ class Agent:
         ]
 
     async def send_feedback(self, feedback: str):
+        """
+        MAIN AI WORKFLOW ORCHESTRATOR - Processes user requests end-to-end
+        
+        STEP-BY-STEP COMMUNICATION FLOW:
+        1. Frontend sends user feedback via WebSocket
+        2. Agent loads current sandbox code via MCP tools
+        3. Agent calls BAML Client with structured prompt (RPC-like)
+        4. BAML Client streams OpenAI responses back to Agent
+        5. Agent applies code changes via MCP tools
+        6. Agent sends real-time updates to Frontend via WebSocket
+        """
+        
+        # Step 1: Notify frontend that AI is processing the request
         yield Message.new(MessageType.UPDATE_IN_PROGRESS, {}).to_dict()
 
+        # Step 2: Load current codebase from sandbox via MCP tools
+        # This ensures AI has complete context of existing code
         code_map, package_json = await self.load_code(self.init_data["sandbox_id"])
 
+        # Step 3: Format code files for BAML Client consumption
         code_files = []
         for path, content in code_map.items():
             code_files.append({"path": path, "content": content})
 
+        # Step 4: Get conversation history for multi-turn context
         history = self.get_history()
+        
+        # Step 5: BAML CLIENT RPC CALL - This is where AI magic happens!
+        # BAML provides RPC-like interface to OpenAI, handling:
+        # - Structured prompt templating with conversation history
+        # - Type-safe request/response with streaming
+        # - Automatic retry logic and error handling
         stream = self.model_client.stream.EditCode(
             history, feedback, code_files, package_json
         )
@@ -155,7 +205,9 @@ class Agent:
         plan_msg_id = str(uuid.uuid4())
         file_msg_id = str(uuid.uuid4())
 
+        # Step 6: Process streamed AI responses in real-time
         for partial in stream:
+            # Stream AI's planning/explanation to frontend
             if partial.plan.state != "Complete" and not sent_plan:
                 yield Message.new(
                     MessageType.AGENT_PARTIAL,
@@ -163,6 +215,7 @@ class Agent:
                     id=plan_msg_id,
                 ).to_dict()
 
+            # Send final AI plan when complete
             if partial.plan.state == "Complete" and not sent_plan:
                 yield Message.new(
                     MessageType.AGENT_FINAL,
@@ -170,12 +223,14 @@ class Agent:
                     id=plan_msg_id,
                 ).to_dict()
 
+                # Add to conversation history for future context
                 await self.add_to_history(feedback, partial.plan.value)
-
                 sent_plan = True
 
+            # Process generated code files
             for file in partial.files:
                 if file.path not in new_code_map:
+                    # Notify frontend about file being worked on
                     yield Message.new(
                         MessageType.UPDATE_FILE,
                         {"text": f"Working on {file.path}"},
@@ -184,8 +239,11 @@ class Agent:
 
                     new_code_map[file.path] = file.content
 
+        # Step 7: Apply all code changes to sandbox via MCP tools
+        # This triggers the dev server restart and live preview update
         await self.edit_code(self.init_data["sandbox_id"], new_code_map)
 
+        # Step 8: Notify frontend that all updates are complete
         yield Message.new(MessageType.UPDATE_COMPLETED, {}).to_dict()
 
 

@@ -43,7 +43,7 @@ export const SignupPage: React.FC = () => {
       setError(error.message || 'An error occurred during signup')
       setLoading(false)
     } else {
-      setSuccess('Account created successfully! Please check your email to confirm your account.')
+      setSuccess('Account created successfully!')
       setLoading(false)
       setTimeout(() => {
         navigate('/login')

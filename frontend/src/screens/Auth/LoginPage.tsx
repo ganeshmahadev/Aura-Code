@@ -52,10 +52,6 @@ export const LoginPage: React.FC = () => {
               Continue with Google
               <LastUsedBadge>Last used</LastUsedBadge>
             </SocialButton>
-            <SocialButton>
-              <GithubIcon>⚡</GithubIcon>
-              Continue with GitHub
-            </SocialButton>
           </SocialButtons>
 
           <Divider>
@@ -215,15 +211,6 @@ const GoogleIcon = styled.div`
   font-size: 12px;
 `
 
-const GithubIcon = styled.div`
-  width: 20px;
-  height: 20px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-`
 
 const LastUsedBadge = styled.span`
   position: absolute;

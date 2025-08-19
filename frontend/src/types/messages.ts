@@ -5,8 +5,8 @@ export enum MessageType {
   CODE_DISPLAY_RESPONSE = "code_display_response",
   ERROR = "error",
   PING = "ping",
-  AGENT_FINAL = "agent_final",
-  AGENT_PARTIAL = "agent_partial",
+  AGENT_FINAL = "agent_final", //handling the final response from the AI agent
+  AGENT_PARTIAL = "agent_partial",//handling the partial response from the AI agent
   USER = "user",
   UPDATE_IN_PROGRESS = "update_in_progress",
   UPDATE_FILE = "update_file",

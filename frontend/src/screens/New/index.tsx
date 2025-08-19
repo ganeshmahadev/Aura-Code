@@ -195,14 +195,6 @@ const StyledTextarea = styled(Textarea)`
   }
 `;
 
-const PaperclipIcon = styled.div`
-  position: absolute;
-  left: 20px;
-  bottom: 20px;
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.7);
-  z-index: 2;
-`;
 
 const ArrowButton = styled.button`
   position: absolute;
