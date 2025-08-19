@@ -18,17 +18,27 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ files, className, isDark = true
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const codeRef = useRef<HTMLElement>(null);
 
+  // Debug files prop changes
+  console.log("📁 CodeViewer - files prop received:", {
+    fileCount: Object.keys(files).length,
+    fileNames: Object.keys(files).slice(0, 5), // Show first 5 files
+    hasFiles: Object.keys(files).length > 0
+  });
+
   // Initialize with first file if available
   useEffect(() => {
     if (!selectedFile && Object.keys(files).length > 0) {
-      setSelectedFile(Object.keys(files)[0]);
+      const firstFile = Object.keys(files)[0];
+      console.log("📁 CodeViewer - Setting first file as selected:", firstFile);
+      setSelectedFile(firstFile);
     }
   }, [files, selectedFile]);
 
   // Simple code display without syntax highlighting for now
   useEffect(() => {
     // Code content will be displayed as plain text initially
-    console.log("CodeViewer received files:", Object.keys(files));
+    console.log("📁 CodeViewer - Files changed, current files:", Object.keys(files));
+    console.log("📁 CodeViewer - Selected file:", selectedFile);
   }, [selectedFile, files]);
 
   const getLanguage = (filename: string): string => {

@@ -89,6 +89,7 @@ const Create = () => {
   const sandboxIdRef = useRef<string>("");
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const { user } = useAuth();
+  const [sessionHasSandbox, setSessionHasSandbox] = useState(false); // Track if session has sandbox_id
 
   // Helper functions for message conversion
   const convertToDbMessage = (msg: Message): {
@@ -142,68 +143,120 @@ const Create = () => {
     let isCancelled = false;
     
     const initializeSession = async () => {
-      if (!user || currentSession) return; // Prevent duplicate creation
+      if (!user) return; // Wait for user to be available
 
       const sessionId = location.state?.sessionId;
       
+      console.log('🔄 SESSION RESTORATION DEBUG START');
+      console.log('Current user:', user?.id);
+      console.log('Location state sessionId:', sessionId);
+      console.log('Current session ID:', currentSession?.id);
+      console.log('Current sandboxId:', sandboxId);
+      
+      // Reset session state when sessionId changes
+      if (currentSession && currentSession.id !== sessionId) {
+        console.log('🔄 Session ID changed, resetting session state');
+        console.log('Previous session ID:', currentSession.id);
+        console.log('New session ID:', sessionId);
+        setCurrentSession(null);
+        setSandboxId('');
+        sandboxIdRef.current = '';
+        setMessages([]);
+        setIframeUrl('');
+        setInitCompleted(false);
+        setIsUpdateInProgress(false);
+        setCodeFiles({});
+        hasConnectedRef.current = false;
+        processedMessageIds.current.clear();
+        initialPromptSent.current = false;
+      }
+      
+      // Don't proceed if we already have the correct session loaded
+      if (currentSession && currentSession.id === sessionId) {
+        console.log('✅ Session already loaded:', currentSession.id);
+        console.log('🔄 SESSION RESTORATION DEBUG END - Already loaded');
+        return;
+      }
+      
       if (sessionId) {
         // Load existing session
+        console.log('🔄 Loading existing session with ID:', sessionId);
         try {
           const session = await getSession(sessionId);
           if (!isCancelled) {
+            console.log('📊 Session data from database:', {
+              id: session.id,
+              title: session.title,
+              sandbox_id: session.sandbox_id,
+              iframe_url: session.iframe_url,
+              created_at: session.created_at,
+              updated_at: session.updated_at
+            });
+            
             setCurrentSession(session);
             if (session.sandbox_id) {
+              console.log('✅ Session has sandbox_id:', session.sandbox_id);
               setSandboxId(session.sandbox_id);
               sandboxIdRef.current = session.sandbox_id;
+              setSessionHasSandbox(true); // Mark that this session has a sandbox
               // Mark as initialized for existing sessions
               setInitCompleted(true);
               // Reset update state for existing sessions
               setIsUpdateInProgress(false);
-              // Fetch code files for existing sessions
-              fetchCodeFiles(session.sandbox_id);
+              // Don't fetch code files here - wait for connection to be established
+              console.log('Session loaded, waiting for connection to fetch code files');
+            } else {
+              console.log('❌ Session does not have sandbox_id - this is a problem!');
+              console.log('This means the session was never properly saved with a sandbox_id');
+              setSessionHasSandbox(false); // Mark that this session doesn't have a sandbox
             }
-            if (session.iframe_url) {
-              setIframeUrl(session.iframe_url);
-            }
+            // Don't set iframe URL from database - wait for server to provide correct sandbox URL
+            // The iframe_url in database might be the AuraCode app URL instead of sandbox URL
+            console.log('Session iframe_url (not setting):', session.iframe_url);
             
             // Load chat messages for existing sessions
             try {
               const chatMessages = await getSessionMessages(session.id);
-              console.log('Raw chat messages from DB:', chatMessages);
+              console.log('📨 Raw chat messages from DB:', chatMessages);
               
               const convertedMessages = chatMessages.map(convertFromDbMessage);
-              console.log('Converted messages:', convertedMessages);
+              console.log('📨 Converted messages:', convertedMessages);
               
               if (convertedMessages.length > 0) {
                 setMessages(convertedMessages);
-                console.log(`Loaded ${convertedMessages.length} messages for session ${session.id}`);
+                console.log(`📨 Loaded ${convertedMessages.length} messages for session ${session.id}`);
                 
                 // Log message senders for debugging
                 convertedMessages.forEach((msg, idx) => {
-                  console.log(`Message ${idx}: sender=${msg.data.sender}, text=${msg.data.text?.substring(0, 50)}...`);
+                  console.log(`📨 Message ${idx}: sender=${msg.data.sender}, text=${msg.data.text?.substring(0, 50)}...`);
                 });
               } else {
-                console.log('No messages found for session', session.id);
+                console.log('📨 No messages found for session', session.id);
               }
             } catch (error) {
-              console.error('Error loading chat messages:', error);
+              console.error('❌ Error loading chat messages:', error);
             }
           }
         } catch (error) {
-          console.error('Error loading session:', error);
+          console.error('❌ Error loading session:', error);
         }
       } else {
         // Create new session only if we don't have one
+        console.log('🆕 Creating new session (no sessionId provided)');
         const title = location.state?.initialPrompt || "New Project";
         try {
           const session = await createSession(title, "Created with AuraCode");
           if (!isCancelled) {
             setCurrentSession(session);
+            setSessionHasSandbox(false); // New sessions don't have sandbox_id yet
+            console.log('🆕 New session created, waiting for sandbox_id from INIT message');
           }
         } catch (error) {
-          console.error('Error creating session:', error);
+          console.error('❌ Error creating session:', error);
         }
       }
+      
+      console.log('🔄 SESSION RESTORATION DEBUG END');
     };
 
     initializeSession();
@@ -211,7 +264,7 @@ const Create = () => {
     return () => {
       isCancelled = true;
     };
-  }, [user]); // Removed location.state dependency to prevent re-runs
+  }, [user, location.state?.sessionId]); // Include sessionId to reload when clicking different cards
 
 
   // Auto-resize textarea
@@ -262,32 +315,128 @@ const Create = () => {
   // Message handlers for different message types
   const messageHandlers = {
     [MessageType.INIT]: (message: Message) => {
+      console.log('🎯 INIT MESSAGE DEBUG START');
+      console.log('INIT message received:', message);
+      console.log('INIT message data:', message.data);
+      console.log('Current state - initCompleted:', initCompleted, 'iframeUrl:', iframeUrl || 'NOT SET');
+      
       const id = message.id;
       if (id) {
         if (processedMessageIds.current.has(id)) {
-          console.log("Skipping duplicate INIT message:", id);
+          console.log("❌ Skipping duplicate INIT message:", id);
+          console.log('🎯 INIT MESSAGE DEBUG END - Duplicate');
           return;
         }
         processedMessageIds.current.add(id);
-        console.log("Processing INIT message:", id);
+        console.log("✅ Processing INIT message:", id);
       }
+      
+      // Check if we've already processed an INIT message for this session
+      if (initCompleted && iframeUrl) {
+        console.log("❌ Skipping INIT message - session already initialized and has iframeUrl");
+        console.log('🎯 INIT MESSAGE DEBUG END - Already initialized');
+        return;
+      }
+      
+      // If initCompleted is true but we don't have iframeUrl, we should still process the INIT message
+      if (initCompleted && !iframeUrl) {
+        console.log("⚠️ Session is initialized but missing iframeUrl, processing INIT message to get URL");
+      }
+      
       //Extract sandbox details from MCP server
       if (typeof message.data.url === "string" && message.data.sandbox_id) {
-        setIframeUrl(message.data.url);
+        console.log("🎯 Setting sandbox details:", {
+          url: message.data.url,
+          sandbox_id: message.data.sandbox_id
+        });
+        
+        // Check if this is a sandbox restoration or new creation
+        const isRestoringExistingSandbox = sandboxIdRef.current && sandboxIdRef.current === message.data.sandbox_id;
+        const isNewSandboxCreation = !sandboxIdRef.current;
+        
+        console.log('🎯 Sandbox operation type:', {
+          isRestoringExistingSandbox,
+          isNewSandboxCreation,
+          currentSandboxId: sandboxIdRef.current,
+          receivedSandboxId: message.data.sandbox_id,
+          sandboxIdsMatch: sandboxIdRef.current === message.data.sandbox_id
+        });
+        
+        // Check if the URL is the AuraCode app URL instead of a sandbox URL
+        if (message.data.url.includes('app.beam.cloud') && !message.data.url.includes('sandbox')) {
+          console.warn("⚠️ Warning: URL appears to be AuraCode app URL, not sandbox URL:", message.data.url);
+        }
+        
+        // Only set iframe URL if we're restoring an existing sandbox
+        // Don't set iframe URL for new sandbox creation when we have an existing sandbox
+        if (isRestoringExistingSandbox) {
+          console.log('✅ Setting iframe URL for restored sandbox:', message.data.url);
+          setIframeUrl(message.data.url);
+        } else if (isNewSandboxCreation) {
+          console.log('✅ Setting iframe URL for new sandbox creation:', message.data.url);
+          setIframeUrl(message.data.url);
+        } else {
+          console.log('⚠️ Received INIT for different sandbox - server may have created new sandbox instead of restoring');
+          console.log('Current sandbox ID:', sandboxIdRef.current);
+          console.log('Received sandbox ID:', message.data.sandbox_id);
+          console.log('Accepting new sandbox URL but keeping original sandbox_id for code files');
+          
+          // Accept the new sandbox URL even though it's a different sandbox_id
+          // This handles the case where the server creates a new sandbox instead of restoring
+          setIframeUrl(message.data.url);
+        }
+        
         setSandboxId(message.data.sandbox_id);
         sandboxIdRef.current = message.data.sandbox_id;
         setIframeError(false);
-        // Fetch initial code files
-        fetchCodeFiles(message.data.sandbox_id);
+        
+        // Mark that this session now has a sandbox_id (important for future restoration)
+        setSessionHasSandbox(true);
+        
+        // Fetch code files after sandbox is restored
+        console.log('🎯 Sandbox restored, fetching code files for:', message.data.sandbox_id);
+        if (fetchCodeFilesRef.current) {
+          // Add a small delay to ensure sandbox is fully ready
+          setTimeout(() => {
+            if (fetchCodeFilesRef.current) {
+              console.log('🎯 Calling fetchCodeFiles for sandbox:', message.data.sandbox_id);
+              fetchCodeFilesRef.current(message.data.sandbox_id);
+            }
+          }, 500);
+        } else {
+          console.log('❌ fetchCodeFilesRef.current is null - cannot fetch code files');
+        }
         
         // Update session with sandbox and URL info
         if (currentSession && user) {
+          console.log('🎯 Updating session with sandbox info:', {
+            sessionId: currentSession.id,
+            sandbox_id: message.data.sandbox_id,
+            iframe_url: message.data.url
+          });
+          
+          // Update the session with the new sandbox_id (even if it's different)
+          // This ensures the session is properly linked to the active sandbox
           updateSession(currentSession.id, {
             sandbox_id: message.data.sandbox_id,
             iframe_url: message.data.url,
             is_active: true
-          }).catch(error => console.error('Error updating session:', error));
+          }).then(updatedSession => {
+            console.log('✅ Session updated successfully:', updatedSession);
+            // Update local state with the updated session
+            setCurrentSession(updatedSession);
+            // Also update the sandboxId to match the new one
+            setSandboxId(message.data.sandbox_id);
+            sandboxIdRef.current = message.data.sandbox_id;
+          }).catch(error => {
+            console.error('❌ Error updating session:', error);
+            // Even if update fails, continue with the process
+          });
+        } else {
+          console.log('❌ Cannot update session - missing currentSession or user');
         }
+      } else {
+        console.log("❌ INIT message does not contain sandbox details:", message.data);
       }
 
       setMessages((prev) => {
@@ -329,6 +478,8 @@ const Create = () => {
         return [...prev, updatedMessage];
       });
       setInitCompleted(true);
+      
+      console.log('🎯 INIT MESSAGE DEBUG END');
     },
 
     [MessageType.ERROR]: (message: Message) => {
@@ -584,15 +735,28 @@ const Create = () => {
       refreshIframe();
       // Refetch code files if we're in code view or have fetched them before
       if (sandboxIdRef.current && (viewMode === "code" || Object.keys(codeFiles).length > 0)) {
-        fetchCodeFiles(sandboxIdRef.current);
+        if (fetchCodeFilesRef.current) {
+          fetchCodeFilesRef.current(sandboxIdRef.current);
+        }
       }
     },
 
     [MessageType.CODE_DISPLAY_RESPONSE]: (message: Message) => {
+      console.log('📁 CODE_DISPLAY_RESPONSE DEBUG START');
+      console.log('Message received:', message);
+      console.log('Message data:', message.data);
+      
       if (message.data.files) {
+        console.log("📁 Received code files from server:", Object.keys(message.data.files));
+        console.log("📁 Code files content:", message.data.files);
         setCodeFiles(message.data.files);
-        console.log("Received code files:", Object.keys(message.data.files));
+        console.log('📁 Code files set in state');
+      } else {
+        console.log("❌ No files received in CODE_DISPLAY_RESPONSE");
+        console.log("📁 Current codeFiles state:", codeFiles);
       }
+      
+      console.log('📁 CODE_DISPLAY_RESPONSE DEBUG END');
     },
   };
 
@@ -604,18 +768,40 @@ const Create = () => {
     });
   }
 
-  const { isConnected, error, connect, send } = useMessageBus({
+  // Define fetchCodeFiles before useMessageBus
+  const fetchCodeFilesRef = useRef<((sandbox_id: string) => void) | null>(null);
+
+  // Debug configuration
+  console.log('BEAM_CONFIG:', {
+    WS_URL: BEAM_CONFIG.WS_URL,
+    TOKEN: BEAM_CONFIG.TOKEN ? 'Present' : 'Missing'
+  });
+  console.log('Session state:', {
+    sandboxId,
+    currentSession: currentSession?.id,
+    hasSandbox: !!sandboxId,
+    sessionHasSandbox,
+    initCompleted,
+    iframeUrl: iframeUrl || 'NOT SET'
+  });
+
+  // Create message bus with dynamic initData based on session state
+  const messageBusConfig = {
     wsUrl: BEAM_CONFIG.WS_URL || '',
     token: BEAM_CONFIG.TOKEN || '',
-    initData: sandboxId ? { sandbox_id: sandboxId, sessionId: currentSession?.id } : undefined,
+    initData: sandboxId && currentSession ? { 
+      sandbox_id: sandboxId, 
+      sessionId: currentSession.id 
+    } : undefined,
     handlers: messageHandlers,
     onConnect: () => {
       console.log("Connected to Beam Cloud");
+      console.log("Connection established with initData:", sandboxId ? { sandbox_id: sandboxId, sessionId: currentSession?.id } : "none");
     },
     onDisconnect: () => {
       hasConnectedRef.current = false;
     },
-    onError: (errorMsg) => {
+    onError: (errorMsg: any) => {
       console.error("Connection error:", errorMsg);
 
       let errorString = "Unknown connection error";
@@ -630,17 +816,73 @@ const Create = () => {
 
       console.error("Processed error:", errorString);
     },
-  });
+  };
+
+  const { isConnected, error, connect, send } = useMessageBus(messageBusConfig);
+
+  // Debug the initData being passed
+  console.log('MessageBus initData:', messageBusConfig.initData);
+  console.log('Current sandboxId:', sandboxId);
+  console.log('Current session:', currentSession?.id);
 
   // Define fetchCodeFiles after send is available
   const fetchCodeFiles = useCallback((sandbox_id: string) => {
+    console.log('📁 FETCH_CODE_FILES DEBUG START');
+    console.log('Fetching code files for sandbox:', sandbox_id);
+    console.log('Current send function available:', !!send);
+    console.log('Current sandboxId:', sandboxId);
+    console.log('Current session:', currentSession?.id);
+    
     try {
-      console.log("Fetching code files for sandbox:", sandbox_id);
+      console.log("📁 Sending GET_CODE_FOR_DISPLAY message with sandbox_id:", sandbox_id);
       send(MessageType.GET_CODE_FOR_DISPLAY, { sandbox_id });
+      console.log('📁 GET_CODE_FOR_DISPLAY message sent successfully');
     } catch (error) {
-      console.error("Failed to fetch code files:", error);
+      console.error("❌ Failed to fetch code files:", error);
     }
-  }, [send]);
+    
+    console.log('📁 FETCH_CODE_FILES DEBUG END');
+  }, [send, sandboxId, currentSession]);
+
+  // Update the ref with the current fetchCodeFiles function
+  useEffect(() => {
+    fetchCodeFilesRef.current = fetchCodeFiles;
+  }, [fetchCodeFiles]);
+
+  // Fetch code files after connection is established and sandbox is restored
+  useEffect(() => {
+    console.log('📁 FETCH_CODE_FILES_USE_EFFECT DEBUG START');
+    console.log('isConnected:', isConnected);
+    console.log('sandboxId:', sandboxId);
+    console.log('currentSession:', currentSession?.id);
+    console.log('fetchCodeFilesRef.current:', !!fetchCodeFilesRef.current);
+    
+    if (isConnected && sandboxId && currentSession && fetchCodeFilesRef.current) {
+      console.log('📁 Connection established, fetching code files for restored sandbox:', sandboxId);
+      // Add a small delay to ensure sandbox is fully restored
+      setTimeout(() => {
+        if (fetchCodeFilesRef.current) {
+          console.log('📁 Calling fetchCodeFiles after delay for sandbox:', sandboxId);
+          fetchCodeFilesRef.current(sandboxId);
+        } else {
+          console.log('❌ fetchCodeFilesRef.current is null after delay');
+        }
+      }, 1000);
+    } else {
+      console.log('📁 Not fetching code files - conditions not met:', {
+        isConnected,
+        hasSandboxId: !!sandboxId,
+        hasCurrentSession: !!currentSession,
+        hasFetchCodeFilesRef: !!fetchCodeFilesRef.current
+      });
+    }
+    
+    console.log('📁 FETCH_CODE_FILES_USE_EFFECT DEBUG END');
+  }, [isConnected, sandboxId, currentSession]);
+
+
+
+
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -729,23 +971,62 @@ const Create = () => {
   const handleIframeLoad = () => {
     console.log("Iframe loaded successfully:", iframeUrl);
     console.log("Current states - initCompleted:", initCompleted, "isUpdateInProgress:", isUpdateInProgress);
+    console.log("Iframe content loaded from:", iframeUrl);
     setIframeError(false);
     setIframeReady(true);
   };
 
   const handleIframeError = () => {
     console.error("Iframe failed to load:", iframeUrl);
+    console.error("Iframe error details - URL:", iframeUrl);
     setIframeError(true);
   };
 
-  // Simple auto-connect
+  // Connect when session data is available
   useEffect(() => {
-    if (!isConnected && !hasConnectedRef.current) {
-      console.log("Connecting to Workspace");
+    console.log('🔌 CONNECTION DEBUG START');
+    console.log('Current session:', currentSession?.id);
+    console.log('Is connected:', isConnected);
+    console.log('Has connected ref:', hasConnectedRef.current);
+    console.log('Sandbox ID:', sandboxId);
+    
+    if (currentSession && !isConnected && !hasConnectedRef.current) {
+      console.log("🔌 Connecting with session data:", {
+        sessionId: currentSession.id,
+        sandboxId: sandboxId,
+        hasSandbox: !!sandboxId,
+        initData: sandboxId && currentSession ? { 
+          sandbox_id: sandboxId, 
+          sessionId: currentSession.id 
+        } : undefined
+      });
+      
+      // Check if we have sandbox_id for restoration
+      if (sandboxId) {
+        console.log("✅ Will restore existing sandbox:", sandboxId);
+      } else {
+        console.log("❌ No sandbox_id found - will create new sandbox");
+      }
+      
       hasConnectedRef.current = true;
-      connect();
+      connect().catch(error => {
+        console.error("❌ Failed to connect:", error);
+        hasConnectedRef.current = false;
+      });
+    } else if (currentSession && isConnected) {
+      console.log("🔌 Already connected, skipping connection attempt");
+    } else if (currentSession && hasConnectedRef.current) {
+      console.log("🔌 Connection attempt already in progress, skipping");
+    } else {
+      console.log("🔌 Not connecting - conditions not met:", {
+        hasCurrentSession: !!currentSession,
+        isConnected,
+        hasConnectedRef: hasConnectedRef.current
+      });
     }
-  }, [isConnected, connect]);
+    
+    console.log('🔌 CONNECTION DEBUG END');
+  }, [currentSession, sandboxId, isConnected, connect]);
 
   // Clear processed message IDs when connection is lost
   useEffect(() => {
@@ -914,7 +1195,9 @@ const Create = () => {
                   const newViewMode = viewMode === "preview" ? "code" : "preview";
                   setViewMode(newViewMode);
                   if (newViewMode === "code" && sandboxId && Object.keys(codeFiles).length === 0) {
-                    fetchCodeFiles(sandboxId);
+                    if (fetchCodeFilesRef.current) {
+          fetchCodeFilesRef.current(sandboxId);
+        }
                   }
                 }}
                 title={viewMode === "preview" ? "View Code" : "View Preview"}

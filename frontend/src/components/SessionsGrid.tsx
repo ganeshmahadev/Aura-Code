@@ -34,6 +34,17 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isHomepage = false }
       await removeDuplicateSessions()
       
       const userSessions = await getUserSessions()
+      console.log('Loaded sessions from database:', userSessions);
+      
+      // Check which sessions have sandbox_id
+      userSessions.forEach(session => {
+        if (session.sandbox_id) {
+          console.log(`✅ Session "${session.title}" has sandbox_id: ${session.sandbox_id}`);
+        } else {
+          console.log(`❌ Session "${session.title}" has NO sandbox_id`);
+        }
+      });
+      
       setSessions(userSessions)
     } catch (error) {
       console.error('Error loading sessions:', error)
@@ -65,6 +76,14 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isHomepage = false }
   }
 
   const handleOpenSession = (session: Session) => {
+    console.log('🎯 Opening session:', {
+      id: session.id,
+      title: session.title,
+      sandbox_id: session.sandbox_id,
+      hasSandbox: !!session.sandbox_id
+    });
+    console.log('🎯 Navigating to /create with sessionId:', session.id);
+    
     navigate('/create', { 
       state: { 
         sessionId: session.id,

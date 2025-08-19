@@ -5,43 +5,42 @@
 [![Node.js 20+](https://img.shields.io/badge/node.js-20+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-AuraCode is a sophisticated AI-powered web development platform that enables real-time collaboration between developers and AI agents to build, modify, and deploy web applications instantly. Inspired by modern AI coding assistants, it provides a complete development environment with live preview, code generation, and session persistence.
+AuraCode is a sophisticated AI-powered web development platform that enables real-time collaboration between developers and AI agents to build and modify web applications instantly. Inspired by modern AI coding assistants, it provides a complete development environment with live preview, code generation, and session persistence.
 
 
 
-## ✨ Key Features
+##  Key Features
 
-### 🤖 **AI-Powered Development**
+### **AI-Powered Development**
 - **Natural Language to Code**: Describe your app in plain English and watch AI generate React components
 - **Real-time Code Generation**: Streaming AI responses with live code updates
 - **Context-Aware Intelligence**: AI understands your entire project structure and maintains consistency
 - **Multi-step Conversations**: Build complex features through iterative conversations
 
-### 🔄 **Live Development Environment**
+###  **Live Development Environment**
 - **Instant Preview**: See changes immediately in a live iframe preview
 - **Multi-device Testing**: Switch between mobile, tablet, and desktop views
 - **Hot Reloading**: Automatic refresh when code updates are completed
 - **Isolated Sandboxes**: Each project runs in its own secure container environment
 
-### 💾 **Session Management**
+###  **Session Management**
 - **Persistent Projects**: Save and restore development sessions with full chat history
 - **Project Dashboard**: Manage multiple projects with thumbnails and metadata
 - **Session Restoration**: Continue exactly where you left off, including sandbox state
 - **Chat History**: Complete conversation history preserved across sessions
 
-### 🎨 **Modern UI/UX**
-- **Dark/Light Mode**: Seamless theme switching with system preference detection
+###  **Modern UI/UX**
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
 - **Real-time Chat**: Smooth chat interface with typing indicators and message streaming
-- **Code Viewer**: Syntax-highlighted code display with file tree navigation
+- **Code Viewer**:code display with file tree navigation
 
-### 🔐 **Security & Authentication**
+###  **Security & Authentication**
 - **Supabase Authentication**: Secure user management with Row Level Security (RLS)
 - **Protected Routes**: Session-based access control
 - **Secure Sandboxes**: Isolated execution environments prevent code interference
 - **Environment Isolation**: Each user's projects are completely separated
 
-## 🏗️ Technical Architecture
+##  Technical Architecture
 
 AuraCode is built on a modern, scalable architecture with four core components:
 
@@ -72,7 +71,7 @@ AuraCode is built on a modern, scalable architecture with four core components:
 - **Real-time subscriptions** for live updates
 - **JWT Authentication** with secure session management
 
-## 🔌 WebSocket Communication Flow
+##  WebSocket Communication Flow
 
 ![WebSocket Communication](assets/websocket.png)
 
@@ -94,7 +93,7 @@ Database ← Session Management ← MCP Server ← Sandbox Environment
 - `UPDATE_COMPLETED` - Code changes applied successfully
 - `CODE_DISPLAY_RESPONSE` - Code files for display in viewer
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### **Frontend Technologies**
 - **React 18** - Modern React with concurrent features
@@ -129,7 +128,7 @@ Database ← Session Management ← MCP Server ← Sandbox Environment
 - **Node.js 20** - JavaScript runtime for sandboxes
 - **Vite Dev Server** - Fast development server with HMR
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -249,7 +248,7 @@ Open your browser and navigate to `http://localhost:5173`
    make generate
    ```
 
-## 📚 API Documentation
+##  API Documentation
 
 ### WebSocket Messages
 
@@ -452,7 +451,7 @@ chat_messages (
 )
 ```
 
-## 🔒 Security Features
+##  Security Features
 
 - **Row Level Security (RLS)** - Database-level access control
 - **JWT Authentication** - Secure token-based authentication  
@@ -461,7 +460,7 @@ chat_messages (
 - **Environment Isolation** - User projects completely separated
 - **Secure WebSocket** - Authenticated real-time connections
 
-## 🚀 Deployment
+##  Deployment
 
 ### Deploy to Beam Cloud
 
@@ -490,7 +489,7 @@ beam secret create SUPABASE_URL your-production-url
 beam secret create SUPABASE_KEY your-production-key
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -504,7 +503,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [Beam Cloud](https://beam.cloud) - Serverless platform and sandbox environments
 - [BAML](https://github.com/BoundaryML/baml) - Structured LLM communication framework
@@ -512,7 +511,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OpenAI](https://openai.com) - AI language models
 - [Lovable.dev](https://lovable.dev) - Inspiration for the original concept
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -536,21 +535,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Check browser console for errors
 - Verify sandbox is still running
 
-### Getting Help
-
-- 📧 Email: support@auracode.dev
-- 💬 Discord: [Join our community](https://discord.gg/auracode)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/auracode/issues)
-- 📖 Docs: [Full Documentation](https://docs.auracode.dev)
-
----
-
-<div align="center">
-  <h3>Built with ❤️ by the AuraCode Team</h3>
-  <p>
-    <a href="https://auracode.dev">Website</a> •
-    <a href="https://docs.auracode.dev">Documentation</a> •
-    <a href="https://discord.gg/auracode">Community</a> •
-    <a href="https://twitter.com/auracode">Twitter</a>
-  </p>
-</div>

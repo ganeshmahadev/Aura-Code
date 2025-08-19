@@ -101,7 +101,10 @@ export class WebSocketBus {
    * This method handles the complete connection lifecycle.
    */
   public async connect(): Promise<WebSocket> {
-    const wsUrl = this.websocketUrl();    
+    const wsUrl = this.websocketUrl();
+    console.log('Connecting to WebSocket URL:', wsUrl);
+    console.log('Config URL:', this.config.url);
+    console.log('Config token:', this.config.token ? 'Present' : 'Missing');
     this.ws = new WebSocket(wsUrl);
 
     // MESSAGE RECEPTION HANDLER - Processes incoming messages from AI Agent
@@ -142,6 +145,17 @@ export class WebSocketBus {
       // This tells the agent to restore an existing sandbox instead of creating new one
       const initData = this.config.initData || {};
       console.log('Sending INIT with data:', initData);
+      console.log('WebSocket connected, sending INIT message for session restoration');
+      
+      if (initData.sandbox_id) {
+        console.log('🔄 Restoring existing sandbox with ID:', initData.sandbox_id);
+        console.log('This should restore all files from the previous session');
+        console.log('Expected behavior: Server should restore existing sandbox, not create new one');
+      } else {
+        console.log('🆕 Creating new sandbox (no sandbox_id provided)');
+        console.log('This will create a new sandbox with template files');
+        console.log('Expected behavior: Server should create new sandbox with template files');
+      }
       
       // Send INIT message to agent - this triggers sandbox creation/restoration
       this.sendMessage(createMessage(MessageType.INIT, initData));

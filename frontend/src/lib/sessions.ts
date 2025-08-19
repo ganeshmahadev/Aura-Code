@@ -218,10 +218,26 @@ export const saveMessage = async (
   }
 ) => {
   try {
+    // Check if message already exists to prevent duplicates
+    const { data: existingMessages } = await supabase
+      .from('chat_messages')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('type', message.type)
+      .eq('content', message.content)
+      .eq('sender', message.sender)
+      .gte('timestamp', new Date(message.timestamp - 5000).toISOString()) // Within 5 seconds
+      .lte('timestamp', new Date(message.timestamp + 5000).toISOString())
+      .limit(1);
+
+    if (existingMessages && existingMessages.length > 0) {
+      console.log('Message already exists, skipping save');
+      return existingMessages[0] as ChatMessage;
+    }
+
     const { data, error } = await supabase
       .from('chat_messages')
       .insert({
-        id: message.id || crypto.randomUUID(),
         session_id: sessionId,
         type: message.type,
         content: message.content,
@@ -236,6 +252,11 @@ export const saveMessage = async (
       // Gracefully handle table not existing yet
       if (error.code === 'PGRST205') {
         console.warn('Chat messages table not created yet. Please create it using the provided SQL.');
+        return null;
+      }
+      // Handle duplicate key error gracefully
+      if (error.code === '23505') {
+        console.log('Message already exists (duplicate key), skipping save');
         return null;
       }
       console.error('Error saving message:', error)
