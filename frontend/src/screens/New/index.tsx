@@ -1,3 +1,24 @@
+/**
+ * NEW SCREEN - LANDING PAGE FOR AI-POWERED DEVELOPMENT
+ * 
+ * This is the main entry point for new users and project creation.
+ * It provides an elegant interface for users to describe what they want to build,
+ * then seamlessly transitions them to the active development environment.
+ * 
+ * USER JOURNEY:
+ * 1. User lands on this page (unauthenticated or authenticated)
+ * 2. User types their project idea in the chat-like input
+ * 3. User presses Enter or clicks the arrow button
+ * 4. Navigates to /create with the initial prompt
+ * 5. AI agents begin processing the request and generating code
+ * 
+ * DESIGN PHILOSOPHY:
+ * - Clean, minimal interface focusing on the input
+ * - Chat-like interaction pattern familiar to users
+ * - Beautiful gradient background with subtle texture
+ * - Prominent branding with AuraCode identity
+ * - Responsive design that works across all devices
+ */
 import React, { useState } from "react";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -6,11 +27,16 @@ import { useNavigate } from "react-router-dom";
 import LovableIcon from "@/components/lovable-icon";
 
 const NewScreen: React.FC = () => {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(""); // User's project description
   const navigate = useNavigate();
 
+  /**
+   * Handle starting the AI development process
+   * Navigates to the Create screen with the user's initial prompt
+   */
   const handleStartBuilding = () => {
     if (input.trim()) {
+      // Pass initial prompt and theme preferences to the development environment
       navigate("/create", { state: { initialPrompt: input, isDarkMode: true } });
     }
   };

@@ -36,7 +36,7 @@ export const useAuth = () => {
   }
   return context
 }
-
+//using a react context provider to manage the authentication state across the app
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<any>(null)

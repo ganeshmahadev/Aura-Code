@@ -73,12 +73,6 @@ class Agent:
     2. MCP Tools - Provides sandbox file operations and environment management  
     3. Frontend Communication - Streams real-time responses via WebSocket
     
-    COMMUNICATION FLOW:
-    Frontend → Agent → BAML Client (OpenAI) → Code Generation
-                  ↓
-    Agent → MCP Tools → Sandbox Operations (files, commands)
-                  ↓  
-    Agent → Frontend → Live Preview Updates
     """
     def __init__(self, *, mcp_url: str):
         # BAML Client: Handles OpenAI API communication with structured prompts/responses
@@ -191,7 +185,7 @@ class Agent:
         # Step 4: Get conversation history for multi-turn context
         history = self.get_history()
         
-        # Step 5: BAML CLIENT RPC CALL - This is where AI magic happens!
+        # Step 5: 
         # BAML provides RPC-like interface to OpenAI, handling:
         # - Structured prompt templating with conversation history
         # - Type-safe request/response with streaming

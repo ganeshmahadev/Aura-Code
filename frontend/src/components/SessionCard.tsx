@@ -1,12 +1,32 @@
+/**
+ * SESSION CARD COMPONENT
+ * 
+ * This component displays individual AI development sessions in a card format.
+ * Each session represents a unique AI-powered development project with its own
+ * isolated sandbox environment, chat history, and generated code.
+ * 
+ * KEY FEATURES:
+ * - Visual thumbnail preview of the generated application
+ * - Session status indicators (active/inactive)
+ * - Time-based formatting for last updated timestamps
+ * - Quick actions: open in new tab, delete session
+ * - Responsive card layout with hover effects
+ * 
+ * SESSION DATA FLOW:
+ * 1. Session data comes from Supabase database
+ * 2. Each session has associated chat messages and generated files
+ * 3. Active sessions maintain WebSocket connections to AI agents
+ * 4. Sessions can be resumed, allowing users to continue AI development
+ */
 import React from 'react'
 import { Clock, ExternalLink, Trash2 } from 'lucide-react'
 import styled from 'styled-components'
 import type { Session } from '../lib/supabase'
 
 interface SessionCardProps {
-  session: Session
-  onOpen: (session: Session) => void
-  onDelete: (sessionId: string) => void
+  session: Session          // Session data from database
+  onOpen: (session: Session) => void    // Handler to resume/open session
+  onDelete: (sessionId: string) => void // Handler to delete session
 }
 
 export const SessionCard: React.FC<SessionCardProps> = ({
@@ -14,6 +34,10 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onOpen,
   onDelete
 }) => {
+  /**
+   * Format timestamps to human-readable relative time
+   * Shows "Just now", "2 hours ago", "3 days ago", or full date
+   */
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()

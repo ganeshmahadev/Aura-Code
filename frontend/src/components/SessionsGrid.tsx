@@ -20,6 +20,8 @@ export const SessionsGrid: React.FC<SessionsGridProps> = ({ isHomepage = false }
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
 
+// This organizes multiple sessions in a responsive grid layout. 
+// Users can manage multiple AI development projects simultaneously, each with its own isolated environment.'  
   useEffect(() => {
     loadSessions()
   }, [])

@@ -3,13 +3,17 @@ class CodeChanges {
   files File[]
   package_json string
 }
+//The plan text is streamed token-by-token (or chunk-by-chunk). 
+//With with_state, each partial emission carries the current full state of the plan so far (not just a tiny delta). 
+//That lets your UI simply replace the plan text as it grows, and it maps cleanly to your AGENT_PARTIAL → AGENT_FINAL chat updates.
 
 class File {
     path string
     content string
-    @@stream.done
+    @stream.done
 }
-
+//The array of File objects is emitted file-by-file as soon as each one is ready. 
+//The @stream.done marker indicates when a single File object is complete (after path and content are filled), so your agent can immediately act on it
 class Message {
     role string
     content string

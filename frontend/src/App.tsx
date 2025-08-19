@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 /**
  * HomePage Component - Main landing page that adapts based on authentication state
  * - For authenticated users: Shows workspace with chat interface and project grid
- * - For non-authenticated users: Shows the NewScreen (landing page)
+ * - For non-authenticated users: Shows the landing page
  */
 const HomePage: React.FC = () => {
   const { user, loading } = useAuth(); // Get current user and loading state

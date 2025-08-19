@@ -1,5 +1,5 @@
 /**
- * SESSION MANAGEMENT - Database Operations for Project Persistence
+
  * 
  * This module handles all database operations related to user sessions (projects).
  * Each session represents a unique development project with its own:
@@ -9,25 +9,6 @@
  * 3. Chat history (linked chat_messages table)
  * 4. User ownership (user_id for access control)
  * 
- * DATABASE SCHEMA:
- * sessions table:
- * - id: UUID (primary key)
- * - user_id: UUID (foreign key to auth.users)
- * - title: TEXT (project name)
- * - description: TEXT (project description)
- * - sandbox_id: TEXT (Beam Cloud sandbox identifier)
- * - iframe_url: TEXT (live preview URL)
- * - is_active: BOOLEAN (session status)
- * - created_at, updated_at: TIMESTAMP
- * 
- * chat_messages table:
- * - id: UUID (primary key)
- * - session_id: UUID (foreign key to sessions)
- * - type: TEXT (message type: USER, ASSISTANT, INIT, etc.)
- * - content: TEXT (message content)
- * - sender: TEXT (USER or ASSISTANT)
- * - timestamp: TIMESTAMP (message timestamp)
- * - message_data: JSONB (additional message metadata)
  */
 
 import { supabase, type Session, type ChatMessage } from './supabase'

@@ -1,3 +1,18 @@
+/**
+ * LOGIN COMPONENT - User Authentication Interface
+ * 
+ * This component handles user authentication using email/password.
+ * It integrates with our AuthContext and Supabase authentication system
+ * to provide secure login functionality with proper error handling.
+ * 
+ * AUTHENTICATION FEATURES:
+ * - Email/password validation and login
+ * - Real-time form validation with user feedback
+ * - Loading states during authentication process
+ * - Error handling with user-friendly messages
+ * - Responsive design with consistent styling
+ * - Navigation integration after successful login
+ */
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -6,17 +21,19 @@ import { Input } from '@/components/ui/input'
 import styled from 'styled-components'
 
 interface LoginProps {
-  onSwitchToSignUp: () => void
+  onSwitchToSignUp: () => void // Callback to switch to signup form
 }
 
 export const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
+  // Form state management
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false) // Loading state for UX
+  const [error, setError] = useState('') // Error message display
   
-  const { signIn } = useAuth()
-  const navigate = useNavigate()
+  // Authentication and navigation hooks
+  const { signIn } = useAuth() // Get sign-in function from auth context
+  const navigate = useNavigate() // Navigation hook for redirect after login
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

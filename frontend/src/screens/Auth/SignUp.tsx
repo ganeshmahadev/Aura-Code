@@ -7,7 +7,7 @@ import styled from 'styled-components'
 interface SignUpProps {
   onSwitchToLogin: () => void
 }
-
+//Similar structure to Login but with additional field validation and user registration flow.
 export const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

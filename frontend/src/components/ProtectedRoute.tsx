@@ -1,15 +1,25 @@
+/**
+ * PROTECTED ROUTE COMPONENT
+ * 
+ * This component acts as a security wrapper for routes that require authentication.
+ * It integrates with our AuthContext to check if a user is logged in and provides
+ * appropriate handling for different authentication states.
+ * 
+ */
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import styled from 'styled-components'
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
+  children: React.ReactNode // The component/page to protect
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth() // Get authentication state from context
 
+  // Show loading spinner while authentication status is being determined
+  // This prevents flickering between login and protected content
   if (loading) {
     return (
       <LoadingContainer>
@@ -19,10 +29,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     )
   }
 
+  // If no authenticated user, redirect to login page
+  // The 'replace' prop prevents adding to browser history
   if (!user) {
     return <Navigate to="/login" replace />
   }
 
+  // User is authenticated, render the protected content
   return <>{children}</>
 }
 
